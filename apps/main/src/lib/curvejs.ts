@@ -21,7 +21,7 @@ import {
 } from '@/utils/utilsCurvejs'
 
 import networks from '@/networks'
-import { BN, formatNumber } from '@/ui/utils'
+import { BN, formatNumber, shortenAccount } from '@/ui/utils'
 import { fulfilledValue, getErrorMessage, isValidAddress, log, shortenTokenAddress, shortenTokenName } from '@/utils'
 import { httpFetcher } from '@/lib/utils'
 import { parseRouterRoutes } from '@/components/PageRouterSwap/utils'
@@ -67,6 +67,9 @@ const helpers = {
       resp.error = getErrorMessage(error, 'error-get-gas')
       return resp
     }
+  },
+  getUserActiveKey: (curve: CurveApi | undefined | null) => {
+    return curve ? `${curve.chainId}-${shortenAccount(curve.signerAddress).toLowerCase()}` : ''
   },
   fetchUsdRates: async (curve: CurveApi, tokenAddresses: string[]) => {
     log('fetchUsdRates', tokenAddresses.length)

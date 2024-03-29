@@ -7,6 +7,7 @@ import cloneDeep from 'lodash/cloneDeep'
 
 import { fulfilledValue, isValidAddress } from '@/utils'
 import networks from '@/networks'
+import api from '@/lib/curvejs'
 
 type StateKey = keyof typeof DEFAULT_STATE
 
@@ -30,7 +31,7 @@ const sliceKey = 'user'
 // prettier-ignore
 export type UserSlice = {
   [sliceKey]: SliceState & {
-    fetchUserPoolList(curve: CurveApi): Promise<UserPoolListMapper>
+    fetchUserPoolList(curve: CurveApi, shouldRefetch?: boolean): Promise<UserPoolListMapper>
     fetchUserPoolInfo(curve: CurveApi, poolId: string, isFetchWalletBalancesOnly?: boolean): Promise<Balances>
 
     setStateByActiveKey<T>(key: StateKey, activeKey: string, value: T): void
@@ -61,9 +62,14 @@ const createUserSlice = (set: SetState<State>, get: GetState<State>): UserSlice 
   [sliceKey]: {
     ...DEFAULT_STATE,
 
-    fetchUserPoolList: async (curve) => {
-      const chainId: ChainId = curve.chainId
-      const userActiveKey = getUserActiveKey(curve)
+    fetchUserPoolList: async (curve, shouldRefetch) => {
+      const userActiveKey = api.helpers.getUserActiveKey(curve)
+      const storedUserPoolList = get()[sliceKey].poolList[userActiveKey]
+
+      if (typeof storedUserPoolList !== 'undefined' && !shouldRefetch) return storedUserPoolList
+
+      const { signerAddress } = curve
+
       let parsedUserPoolList: { [poolId: string]: boolean } = {}
 
       try {
@@ -72,7 +78,7 @@ const createUserSlice = (set: SetState<State>, get: GetState<State>): UserSlice 
           poolListError: '',
         })
 
-        const { poolList } = await networks[chainId].api.wallet.getUserPoolList(curve, curve.signerAddress)
+        const { poolList } = await api.wallet.getUserPoolList(curve, signerAddress)
 
         // parse user pool list
         for (const poolId of poolList) {
@@ -173,9 +179,6 @@ const createUserSlice = (set: SetState<State>, get: GetState<State>): UserSlice 
   },
 })
 
-export function getUserActiveKey(curve: CurveApi | undefined | null) {
-  return curve ? `${curve.chainId}-${shortenAccount(curve.signerAddress).toLowerCase()}` : ''
-}
 export function getUserPoolActiveKey(curve: CurveApi, poolId: string) {
   return `${curve.chainId}-${shortenAccount(curve.signerAddress).toLowerCase()}-${poolId}`
 }

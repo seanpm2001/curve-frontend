@@ -13,6 +13,7 @@ import TableCellRewardsBase from '@/components/PagePoolList/components/TableCell
 import TableCellRewardsOthers from '@/components/PagePoolList/components/TableCellRewardsOthers'
 
 const TableCellRewards = ({
+  rChainId,
   poolData,
   rewardsApy,
   rewardsApyKey,
@@ -20,6 +21,7 @@ const TableCellRewards = ({
   sortBy,
   fetchUserPoolBoost,
 }: {
+  rChainId: ChainId
   poolData: PoolData
   rewardsApy: RewardsApy | undefined
   rewardsApyKey: 'all' | 'baseApy' | 'rewardsApy'
@@ -27,6 +29,7 @@ const TableCellRewards = ({
   userCrvApy?: number
   fetchUserPoolBoost: (() => Promise<string>) | null
 }) => {
+  const { pool } = poolData
   const { base, crv } = rewardsApy ?? {}
   const { haveCrv, haveOther } = haveRewardsApy(rewardsApy ?? {})
   const haveRewards = haveCrv || haveOther
@@ -40,7 +43,7 @@ const TableCellRewards = ({
     return (
       <>
         {!showUserCrvRewards ? (
-          <PoolRewardsCrv rewardsApy={rewardsApy} poolData={poolData} />
+          <PoolRewardsCrv rChainId={rChainId} rPoolId={pool.id} />
         ) : typeof userCrvApy !== 'undefined' && haveCrv ? (
           <Chip
             isBlock
@@ -67,7 +70,7 @@ const TableCellRewards = ({
             ) : null}
           </Chip>
         ) : null}
-        <TableCellRewardsOthers isHighlight={sortBy === 'incentivesRewardsApy'} rewardsApy={rewardsApy} />
+        <TableCellRewardsOthers isHighlight={sortBy === 'incentivesRewardsApy'} rChainId={rChainId} rPoolId={pool.id} />
       </>
     )
   }
@@ -75,7 +78,7 @@ const TableCellRewards = ({
   if (rewardsApyKey === 'baseApy') {
     return (
       <RewardsWrapper>
-        <TableCellRewardsBase base={rewardsApy?.base} isHighlight={sortBy === 'baseApy'} poolData={poolData} />
+        <TableCellRewardsBase isHighlight={sortBy === 'baseApy'} rChainId={rChainId} rPoolId={pool.id} />
       </RewardsWrapper>
     )
   } else if (rewardsApyKey === 'rewardsApy') {
@@ -85,7 +88,7 @@ const TableCellRewards = ({
       <RewardsWrapper>
         {typeof base?.day !== 'undefined' ? (
           <div>
-            <TableCellRewardsBase base={rewardsApy?.base} isHighlight={sortBy === 'baseApy'} poolData={poolData} />
+            <TableCellRewardsBase isHighlight={sortBy === 'baseApy'} rChainId={rChainId} rPoolId={pool.id} />
           </div>
         ) : (
           '-'

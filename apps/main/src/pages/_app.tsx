@@ -15,11 +15,9 @@ import { dynamicActivate, initTranslation, updateAppLocale } from '@/lib/i18n'
 import { getPageWidthClassName } from '@/ui/utils'
 import { getLocaleFromUrl } from '@/utils/utilsRouter'
 import { isMobile, getStorageValue, removeExtraSpaces } from '@/utils'
-import { REFRESH_INTERVAL } from '@/constants'
 import { initOnboard } from 'onboard-helpers'
 import { messages as messagesEn } from '@/locales/en/messages.js'
 import networks from '@/networks'
-import usePageVisibleInterval from '@/hooks/usePageVisibleInterval'
 import useStore from '@/store/useStore'
 import zhHans from 'onboard-helpers/src/locales/zh-Hans'
 import zhHant from 'onboard-helpers/src/locales/zh-Hant'
@@ -31,21 +29,10 @@ i18n.load({ en: messagesEn })
 i18n.activate('en')
 
 function CurveApp({ Component }: AppProps) {
-  const curve = useStore((state) => state.curve)
-  const chainId = curve?.chainId ?? ''
-  const isPageVisible = useStore((state) => state.isPageVisible)
   const locale = useStore((state) => state.locale)
   const pageWidth = useStore((state) => state.pageWidth)
-  const poolDatas = useStore((state) => state.pools.pools[chainId])
   const themeType = useStore((state) => state.themeType)
   const setPageWidth = useStore((state) => state.setPageWidth)
-  const fetchPools = useStore((state) => state.pools.fetchPools)
-  const fetchPoolsVolume = useStore((state) => state.pools.fetchPoolsVolume)
-  const fetchPoolsTvl = useStore((state) => state.pools.fetchPoolsTvl)
-  const fetchGasInfo = useStore((state) => state.gas.fetchGasInfo)
-  const fetchAllStoredUsdRates = useStore((state) => state.usdRates.fetchAllStoredUsdRates)
-  const fetchAllStoredBalances = useStore((state) => state.userBalances.fetchAllStoredBalances)
-  const setTokensMapper = useStore((state) => state.tokens.setTokensMapper)
   const updateShowScrollButton = useStore((state) => state.updateShowScrollButton)
   const updateGlobalStoreByKey = useStore((state) => state.updateGlobalStoreByKey)
   const updateWalletStoreByKey = useStore((state) => state.wallet.setStateByKey)
@@ -56,15 +43,6 @@ function CurveApp({ Component }: AppProps) {
     updateGlobalStoreByKey('isMobile', isMobile())
     if (window.innerWidth) setPageWidth(getPageWidthClassName(window.innerWidth))
   }, [setPageWidth, updateGlobalStoreByKey])
-
-  const fetchPoolsVolumeTvl = useCallback(
-    async (curve: CurveApi) => {
-      const chainId = curve.chainId
-      await Promise.all([fetchPoolsVolume(chainId, poolDatas), fetchPoolsTvl(curve, poolDatas)])
-      setTokensMapper(chainId, poolDatas)
-    },
-    [fetchPoolsTvl, fetchPoolsVolume, poolDatas, setTokensMapper]
-  )
 
   useEffect(() => {
     if (!pageWidth) return
@@ -124,41 +102,6 @@ function CurveApp({ Component }: AppProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const refetchPools = useCallback(
-    async (curve: CurveApi) => {
-      const chainId = curve.chainId
-      const poolIds = await networks[chainId].api.network.fetchAllPoolsList(curve)
-      fetchPools(curve, poolIds, null)
-    },
-    [fetchPools]
-  )
-
-  usePageVisibleInterval(
-    () => {
-      if (curve) {
-        fetchGasInfo(curve)
-        fetchAllStoredUsdRates(curve)
-        fetchPoolsVolumeTvl(curve)
-
-        if (curve.signerAddress) {
-          fetchAllStoredBalances(curve)
-        }
-      }
-    },
-    REFRESH_INTERVAL['5m'],
-    isPageVisible
-  )
-
-  usePageVisibleInterval(
-    () => {
-      if (curve) {
-        refetchPools(curve)
-      }
-    },
-    REFRESH_INTERVAL['11m'],
-    isPageVisible
-  )
 
   return (
     <div suppressHydrationWarning>

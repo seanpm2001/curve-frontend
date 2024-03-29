@@ -105,7 +105,7 @@ const Rewards = ({ chainId, poolData, rewardsApy }: Props) => {
               <StyledStyledStats>
                 CRV
                 <Spacer />
-                {poolData && <PoolRewardsCrv isHighlight poolData={poolData} rewardsApy={rewardsApy} />}
+                {poolData && <PoolRewardsCrv isHighlight rChainId={chainId} rPoolId={poolData?.pool?.id} />}
               </StyledStyledStats>
             )}
 

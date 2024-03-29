@@ -1,48 +1,32 @@
 import type { PoolListTableLabel, TheadBtnProps } from '@/components/PagePoolList/types'
 
-import { t } from '@lingui/macro'
 import React from 'react'
+import { t } from '@lingui/macro'
 
 import Box from '@/ui/Box'
 import IconTooltip from '@/ui/Tooltip/TooltipIcon'
 import TheadSortButton from '@/ui/Table/TheadSortButton'
 
 const TableHeadRewards = ({
-  isReadyRewardsApy,
-  resultRewardsCrvCount,
-  resultRewardsOtherCount,
+  isLoading,
   tableLabels,
   ...props
 }: TheadBtnProps & {
-  isReadyRewardsApy: boolean
-  resultRewardsCrvCount: number
-  resultRewardsOtherCount: number
+  isLoading: boolean
   tableLabels: PoolListTableLabel
 }) => {
   return (
     <>
-      <div>
+      <Box margin="0 0 var(--spacing-1) 0">
         {t`Rewards tAPR`}{' '}
         <IconTooltip placement="top">{t`Token APR based on current prices of tokens and reward rates`}</IconTooltip>
-      </div>
-      <Box grid gridAutoFlow="column" flexAlignItems="center" gridColumnGap={1}>
-        <TheadSortButton
-          disabled={resultRewardsCrvCount === 0}
-          sortIdKey="rewardsCrv"
-          nowrap
-          {...props}
-          loading={!isReadyRewardsApy}
-        >
+      </Box>
+      <Box flex flexAlignItems="center" flexJustifyContent="flex-end" gridGap={1}>
+        <TheadSortButton sortIdKey="rewardsCrv" nowrap {...props} loading={isLoading}>
           {tableLabels.rewardsCrv.name}
         </TheadSortButton>
         +
-        <TheadSortButton
-          disabled={resultRewardsOtherCount === 0}
-          sortIdKey="rewardsOther"
-          nowrap
-          {...props}
-          loading={!isReadyRewardsApy}
-        >
+        <TheadSortButton sortIdKey="rewardsOther" nowrap {...props} loading={isLoading}>
           {tableLabels.rewardsOther.name}
         </TheadSortButton>
       </Box>

@@ -1,26 +1,34 @@
-import { FORMAT_OPTIONS, formatNumber } from '@/ui/utils'
+import type { ChipProps } from '@/ui/Typography/types'
+
+import { formatNumber } from '@/ui/utils'
+import useStore from '@/store/useStore'
 
 import { Chip } from '@/ui/Typography'
 
-type Props = {
-  isHighLight: boolean
-  volumeCached: Volume | undefined
-  volume: Volume | undefined
-}
+const TableCellVolume = ({
+  isHighLight,
+  noStyles,
+  rChainId,
+  rPoolId,
+  ...rest
+}: ChipProps & { isHighLight?: boolean; noStyles?: boolean; rChainId: ChainId; rPoolId: string }) => {
+  const volume = useStore((state) => state.pools.volumeMapper[rChainId]?.[rPoolId]?.value)
+  const volumeCached = useStore((state) => state.storeCache.volumeMapper[rChainId]?.[rPoolId]?.value)
 
-const TableCellVolume = ({ isHighLight, volumeCached, volume }: Props) => {
+  const value = volumeCached ?? volume
+  const formattedVolume =
+    typeof value !== 'undefined' ? formatNumber(value, { currency: 'USD', notation: 'compact' }) : ''
+
   return (
-    <Chip
-      isBold={isHighLight}
-      size="md"
-      tooltip={formatNumber(volume?.value, FORMAT_OPTIONS.USD)}
-      tooltipProps={{ placement: 'bottom end' }}
-    >
-      {formatNumber(volume?.value ?? volumeCached?.value, {
-        currency: 'USD',
-        notation: 'compact',
-      })}
-    </Chip>
+    <>
+      {noStyles ? (
+        formattedVolume
+      ) : (
+        <Chip size="md" isBold={isHighLight} {...rest}>
+          {formattedVolume}
+        </Chip>
+      )}
+    </>
   )
 }
 

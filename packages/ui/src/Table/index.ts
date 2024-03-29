@@ -1,4 +1,4 @@
-export { default as Td } from './Td'
+export { default as TCell } from './TCell'
 export { default as Th } from './Th'
 export { default as Thead } from './Thead'
 export { default as TheadButton } from './TheadButton'

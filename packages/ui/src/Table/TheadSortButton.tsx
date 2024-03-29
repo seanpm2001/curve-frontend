@@ -43,7 +43,7 @@ const TheadSortButton = ({
   }
 
   return (
-    <TheadButton disabled={disabled || loading} onClick={() => handleClick(sortIdKey)} {...props}>
+    <TheadButton disabled={disabled} onClick={() => handleClick(sortIdKey)} {...props}>
       {indicatorPlacement === 'left' && (
         <>
           {<StyledSpinner isVisible={loading && sortIdKey === sortBy} size={12} />}

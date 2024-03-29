@@ -32,7 +32,6 @@ const Dashboard = ({
   const isSubscribed = useRef(false)
   const formValuesWalletAddressRef = useRef('')
 
-  const { tokensMapper } = useTokensMapper(rChainId)
   const activeKey = useStore((state) => state.dashboard.activeKey)
   const isValidWalletAddress = useStore((state) => state.dashboard.isValidWalletAddress[activeKey])
   const dashboardError = useStore((state) => state.dashboard.error)
@@ -176,7 +175,6 @@ const Dashboard = ({
                     poolData={poolData}
                     haveBoost={haveBoost}
                     tableLabel={TABLE_LABEL}
-                    tokensMapper={tokensMapper}
                     walletAddress={formValues.walletAddress}
                     walletPoolData={data}
                   />

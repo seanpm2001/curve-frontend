@@ -1,13 +1,13 @@
-import type { FormValues, PoolListTableLabel, SearchParams } from '@/components/PagePoolList/types'
+import type { TableRowProps } from '@/components/PagePoolList/types'
 import type { Theme } from '@/store/createGlobalSlice'
 
 import { t } from '@lingui/macro'
 import React, { useMemo, useRef } from 'react'
 
-import { formatNumber } from '@/ui/utils'
 import useIntersectionObserver from '@/ui/hooks/useIntersectionObserver'
 
-import { Item, TCellInPool } from '@/components/PagePoolList/components/TableRow'
+import { cellWidths } from '@/components/PagePoolList/utils'
+import { Tr, TCellInPool } from '@/components/PagePoolList/components/TableRow'
 import Button from '@/ui/Button'
 import Icon from '@/ui/Icon'
 import PoolLabel from '@/components/PoolLabel'
@@ -17,51 +17,29 @@ import styled from 'styled-components'
 import Box from '@/ui/Box'
 import IconButton from '@/ui/IconButton'
 import IconTooltip from '@/ui/Tooltip/TooltipIcon'
+import PoolRewardsCrv from '@/components/PoolRewardsCrv'
 import TableCellVolume from '@/components/PagePoolList/components/TableCellVolume'
 import TableCellTvl from '@/components/PagePoolList/components/TableCellTvl'
 import TableCellRewardsBase from '@/components/PagePoolList/components/TableCellRewardsBase'
-import TableCellRewardsCrv from '@/components/PagePoolList/components/TableCellRewardsCrv'
 import TableCellRewardsOthers from '@/components/PagePoolList/components/TableCellRewardsOthers'
 
 const TableRowMobile = ({
-  className,
+  rChainId,
   formValues,
   isInPool,
   imageBaseUrl,
+  poolId,
   poolData,
   poolDataCachedOrApi,
-  poolId,
-  rewardsApy,
   searchParams,
   showDetail,
   tableLabel,
   themeType,
-  tokensMapper,
-  tvlCached,
-  tvl,
-  volumeCached,
-  volume,
   handleCellClick,
   setShowDetail,
-}: {
-  className?: string
-  formValues: FormValues
-  isInPool: boolean
-  imageBaseUrl: string
-  poolData: PoolData | undefined
-  poolDataCachedOrApi: PoolDataCache | PoolData | undefined
-  poolId: string
-  rewardsApy: RewardsApy | undefined
-  searchParams: SearchParams
+}: TableRowProps & {
   showDetail: string
-  tableLabel: PoolListTableLabel
   themeType: Theme
-  tokensMapper: TokensMapper
-  tvlCached: Tvl | undefined
-  tvl: Tvl | undefined
-  volumeCached: Volume | undefined
-  volume: Volume | undefined
-  handleCellClick(target: EventTarget, formType?: 'swap' | 'withdraw'): void
   setShowDetail: React.Dispatch<React.SetStateAction<string>>
 }) => {
   const ref = useRef<HTMLTableRowElement>(null)
@@ -72,34 +50,38 @@ const TableRowMobile = ({
   const isVisible = !!entry?.isIntersecting
   const isShowDetail = showDetail === poolId
 
+  const cellProps = {
+    rChainId,
+    rPoolId: poolId,
+  }
+
   const quickViewValue = useMemo(() => {
     if (sortBy && !showDetail) {
       if (sortBy === 'rewardsBase') {
-        return (
-          <TableCellRewardsBase base={rewardsApy?.base} isHighlight={sortBy === 'rewardsBase'} poolData={poolData} />
-        )
+        return <TableCellRewardsBase isHighlight={sortBy === 'rewardsBase'} {...cellProps} />
       } else if (sortBy === 'rewardsCrv') {
-        return <TableCellRewardsCrv poolData={poolData} isHighlight={sortBy === 'rewardsCrv'} rewardsApy={rewardsApy} />
+        return <PoolRewardsCrv isHighlight={sortBy === 'rewardsCrv'} {...cellProps} />
       } else if (sortBy === 'rewardsOther') {
-        return <TableCellRewardsOthers isHighlight={sortBy === 'rewardsOther'} rewardsApy={rewardsApy} />
+        return <TableCellRewardsOthers isHighlight={sortBy === 'rewardsOther'} {...cellProps} />
       } else if (sortBy === 'volume') {
-        return formatNumber(volume?.value, { notation: 'compact', currency: 'USD' })
+        return <TableCellVolume isHighLight={sortBy === 'volume'} {...cellProps} />
       } else if (sortBy === 'tvl') {
-        return formatNumber(tvl?.value, { notation: 'compact', currency: 'USD' })
+        return <TableCellTvl isHighLight={sortBy === 'tvl'} {...cellProps} />
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDetail, sortBy])
 
   return (
-    <Item ref={ref} className={`${className} row--info ${isVisible ? '' : 'pending'}`}>
+    <Tr ref={ref} className={`border-bottom row--info ${isVisible ? '' : 'pending'}`}>
       <TCell>
         <MobileLabelWrapper flex>
-          <TCellInPool as="div" className={`row-in-pool ${isInPool ? 'active' : ''} `}>
+          <TCellInPool as="div" className={`row-in-pool ${isInPool ? 'active' : ''} ${cellWidths.wInPool}`}>
             {isInPool ? <TableCellInPool /> : null}
           </TCellInPool>
           <MobileLabelContent>
             <PoolLabel
+              rChainId={rChainId}
               isVisible={isVisible}
               imageBaseUrl={imageBaseUrl}
               poolData={poolDataCachedOrApi}
@@ -110,7 +92,6 @@ const TableRowMobile = ({
                 searchTextByOther,
                 onClick: handleCellClick,
               }}
-              tokensMapper={tokensMapper}
             />
             <IconButton
               onClick={() =>
@@ -130,35 +111,34 @@ const TableRowMobile = ({
               <>
                 <div style={{ gridArea: 'grid-volume' }}>
                   <MobileTableTitle>{tableLabel.volume.name}</MobileTableTitle>
-                  <TableCellVolume isHighLight={sortBy === 'volume'} volumeCached={volumeCached} volume={volume} />
+                  <TableCellVolume isHighLight={sortBy === 'volume'} {...cellProps} />
                 </div>
                 <div style={{ gridArea: 'grid-tvl' }}>
                   <MobileTableTitle>{tableLabel.tvl.name}</MobileTableTitle>
-                  <TableCellTvl isHighLight={sortBy === 'tvl'} tvlCached={tvlCached} tvl={tvl} />
+                  <TableCellTvl isHighLight={sortBy === 'tvl'} {...cellProps} />
                 </div>
                 <div style={{ gridArea: 'grid-rewards' }}>
                   <div>
                     <MobileTableTitle>{tableLabel.rewardsBase.name}</MobileTableTitle>
-                    <TableCellRewardsBase
-                      base={rewardsApy?.base}
-                      isHighlight={sortBy === 'rewardsBase'}
-                      poolData={poolData}
-                    />
+                    <TableCellRewardsBase isHighlight={sortBy === 'rewardsBase'} {...cellProps} />
                   </div>
 
                   {!poolData?.pool?.isGaugeKilled && (
                     <div>
                       <MobileTableTitle>
                         {t`Rewards tAPR`}{' '}
-                        <IconTooltip placement="top" minWidth="200px">{t`Token APR based on current prices of tokens and reward rates`}</IconTooltip>
+                        <IconTooltip
+                          placement="top"
+                          minWidth="200px"
+                        >{t`Token APR based on current prices of tokens and reward rates`}</IconTooltip>
                         {tableLabel.rewardsCrv.name} + {tableLabel.rewardsOther.name}
                       </MobileTableTitle>
                       <TCellRewards
-                        poolData={poolData}
+                        rChainId={rChainId}
+                        rPoolId={poolId}
                         isHighlightBase={sortBy === 'rewardsBase'}
                         isHighlightCrv={sortBy === 'rewardsCrv'}
                         isHighlightOther={sortBy === 'rewardsOther'}
-                        rewardsApy={rewardsApy}
                         searchText={Object.keys(searchTextByOther).length > 0 ? searchText : ''}
                       />
                     </div>
@@ -180,7 +160,7 @@ const TableRowMobile = ({
           </MobileTableContent>
         </MobileTableContentWrapper>
       </TCell>
-    </Item>
+    </Tr>
   )
 }
 

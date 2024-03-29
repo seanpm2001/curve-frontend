@@ -16,13 +16,14 @@ import TableCellReferenceAsset from '@/components/PagePoolList/components/TableC
 import TableCellFactory from '@/components/PagePoolList/components/TableCellFactory'
 
 const PoolLabel = ({
+  rChainId,
   className,
   imageBaseUrl,
   isVisible,
   poolData,
   poolListProps,
-  tokensMapper,
 }: {
+  rChainId: ChainId
   className?: string
   imageBaseUrl: string
   isVisible?: boolean
@@ -34,11 +35,12 @@ const PoolLabel = ({
     searchTextByOther?: { [address: string]: boolean }
     onClick(target: EventTarget): void
   }
-  tokensMapper: TokensMapper
 }) => {
   const poolAlert = usePoolAlert(poolData?.pool.address, poolData?.hasVyperVulnerability)
   const tokenAlert = useTokenAlert(poolData?.tokenAddressesAll ?? [])
+
   const isMobile = useStore((state) => state.isMobile)
+  const tokensMapper = useStore((state) => state.tokens.tokensMapper[rChainId])
 
   const { pool, tokens = [], tokenAddresses = [] } = poolData ?? {}
   const { searchText, searchTextByTokensAndAddresses, searchTextByOther, quickViewValue, onClick } = poolListProps ?? {}

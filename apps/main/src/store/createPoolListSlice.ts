@@ -8,11 +8,11 @@ import chunk from 'lodash/chunk'
 import cloneDeep from 'lodash/cloneDeep'
 import differenceWith from 'lodash/differenceWith'
 import endsWith from 'lodash/endsWith'
-import isUndefined from 'lodash/isUndefined'
 import orderBy from 'lodash/orderBy'
 import uniqBy from 'lodash/uniqBy'
 
 import { isStartPartOrEnd, parsedSearchTextToList } from '@/components/PagePoolList/utils'
+import api from '@/lib/curvejs'
 import networks from '@/networks'
 
 type StateKey = keyof typeof DEFAULT_STATE
@@ -51,11 +51,11 @@ type SliceState = {
 // prettier-ignore
 export type PoolListSlice = {
   poolList: SliceState & {
-    filterByKey(key: FilterKey, poolDatas: (PoolDataCache | PoolData)[], userPoolList: { [p: string]: boolean } | undefined): (PoolDataCache | PoolData)[]
-    filterBySearchText(searchText: string, poolDatas: (PoolDataCache | PoolData)[]): (PoolDataCache | PoolData)[]
-    filterSmallTvl(poolDatas: (PoolDataCache | PoolData)[], tvlMapper: TvlMapper, chainId: ChainId): (PoolDataCache | PoolData)[]
-    sortFn(sortKey: SortKey, order: Order, poolDatas: (PoolDataCache | PoolData)[], rewardsApyMapper: RewardsApyMapper, tvlMapper: TvlMapper, volumeMapper: VolumeMapper): (PoolDataCache | PoolData)[]
-    setFormValues(rChainId: ChainId, searchParams: SearchParams, poolDatasCachedOrApi: (PoolDataCache | PoolData)[], rewardsApyMapper: RewardsApyMapper, volumeMapper: VolumeMapper, tvlMapper: TvlMapper, userPoolList: UserPoolListMapper | undefined): Promise<void>
+    filterSmallTvl(curve: CurveApi, poolData: PoolData[]): PoolData[]
+    filterByKey(curve: CurveApi, key: FilterKey, poolDatas: PoolData[]): PoolData[]
+    filterBySearchText(curve: CurveApi, searchText: string, poolDatas: PoolData[]): PoolData[]
+    sortFn(curve: CurveApi, sortKey: SortKey, order: Order, poolDatas: PoolData[]): PoolData[]
+    setFormValues(rChainId: ChainId, searchParams: SearchParams, curve: CurveApi | null, shouldRefetch?: boolean): Promise<void>
 
     setStateByActiveKey<T>(key: StateKey, activeKey: string, value: T): void
     setStateByKey<T>(key: StateKey, value: T): void
@@ -76,16 +76,24 @@ const DEFAULT_STATE: SliceState = {
 
 const sliceKey = 'poolList'
 
-const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
+const createPoolListSlice = (set: SetState<State>, get: GetState<State>): PoolListSlice => ({
   [sliceKey]: {
     ...DEFAULT_STATE,
 
-    filterByKey: (
-      key: FilterKey,
-      poolDatas: (PoolDataCache | PoolData)[],
-      userPoolList: { [poolId: string]: boolean } | undefined
-    ) => {
+    filterSmallTvl: (curve, poolDatas) => {
+      const { chainId } = curve
+      const { hideSmallPoolsTvl } = networks[chainId]
+
+      const tvlMapper = get().pools.tvlMapper[chainId] ?? {}
+
+      return poolDatas.filter(({ pool }) => {
+        return +(tvlMapper[pool.id]?.value || '0') > hideSmallPoolsTvl
+      })
+    },
+    filterByKey: (curve, key, poolDatas) => {
       if (key === 'user') {
+        const userActiveKey = api.helpers.getUserActiveKey(curve)
+        const userPoolList = get().user.poolList[userActiveKey]
         return poolDatas.filter(({ pool }) => (userPoolList ?? {})[pool.id])
       } else if (key === 'btc' || key === 'crypto' || key === 'eth' || key === 'usd' || key === 'kava') {
         return poolDatas.filter(({ pool }) => pool.referenceAsset.toLowerCase() === key)
@@ -110,10 +118,10 @@ const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
       }
       return poolDatas
     },
-    filterBySearchText: (searchText: string, poolDatas: (PoolDataCache | PoolData)[]) => {
+    filterBySearchText: (curve, searchText, poolDatas) => {
       let parsedSearchText = searchText.toLowerCase().trim()
 
-      let results: { searchTerm: string; results: (PoolDataCache | PoolData)[] } = {
+      let results: { searchTerm: string; results: PoolData[] } = {
         searchTerm: '',
         results: [],
       }
@@ -138,21 +146,11 @@ const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
       if (results.searchTerm === parsedSearchText) {
         return results.results
       }
+      return []
     },
-    filterSmallTvl: (poolDatas: (PoolDataCache | PoolData)[], tvlMapper: TvlMapper, chainId: ChainId) => {
-      const hideSmallPoolsTvl = networks[chainId].hideSmallPoolsTvl
-      return poolDatas.filter(({ pool }) => {
-        return +(tvlMapper[pool.id]?.value || '0') > hideSmallPoolsTvl
-      })
-    },
-    sortFn: (
-      sortKey: SortKey,
-      order: Order,
-      poolDatas: (PoolDataCache | PoolData)[],
-      rewardsApyMapper: RewardsApyMapper,
-      tvlMapper: TvlMapper,
-      volumeMapper: VolumeMapper
-    ) => {
+    sortFn: (curve, sortKey, order, poolDatas) => {
+      const { chainId } = curve
+
       if (poolDatas.length === 0) {
         return poolDatas
       } else if (sortKey === 'name') {
@@ -162,6 +160,7 @@ const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
       } else if (sortKey === 'referenceAsset') {
         return orderBy(poolDatas, ({ pool }) => pool.referenceAsset.toLowerCase(), [order])
       } else if (sortKey.startsWith('rewards')) {
+        const rewardsApyMapper = get().pools.rewardsApyMapper[chainId] ?? {}
         return orderBy(
           poolDatas,
           ({ pool }) => {
@@ -179,120 +178,113 @@ const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
           [order]
         )
       } else if (sortKey === 'tvl') {
+        const tvlMapper = get().pools.tvlMapper[chainId] ?? {}
         return orderBy(poolDatas, ({ pool }) => Number(tvlMapper[pool.id]?.value ?? 0), [order])
       } else if (sortKey === 'volume') {
+        const volumeMapper = get().pools.volumeMapper[chainId] ?? {}
         return orderBy(poolDatas, ({ pool }) => Number(volumeMapper[pool.id]?.value ?? 0), [order])
       }
       return poolDatas
     },
-    setFormValues: async (
-      rChainId: ChainId,
-      searchParams: SearchParams,
-      poolDatasCachedOrApi: (PoolDataCache | PoolData)[],
-      rewardsApyMapper: RewardsApyMapper,
-      volumeMapper: VolumeMapper,
-      tvlMapper: TvlMapper,
-      userPoolList: UserPoolListMapper | undefined
-    ) => {
-      const activeKey = getPoolListActiveKey(rChainId, searchParams)
-      const storedFormValues = get()[sliceKey].formValues
-      const storedResults = get()[sliceKey].result[activeKey]
+    setFormValues: async (rChainId, searchParams, curve, shouldRefetch) => {
+      // stored values
+      const poolDatas = get().pools.pools[rChainId]
 
-      const { hideSmallPools, searchText, filterKey, sortBy, sortByOrder } = searchParams
+      const storedFormValues = get()[sliceKey].formValues
 
       // update form values
-      let clonedFormValues = cloneDeep({
+      const activeKey = _getActiveKey(rChainId, searchParams)
+      let cFormValues = cloneDeep({
         ...storedFormValues,
-        hideSmallPools,
+        hideSmallPools: searchParams.hideSmallPools,
         searchTextByTokensAndAddresses: {},
         searchTextByOther: {},
       })
+      get()[sliceKey].setStateByKey('formValues', cFormValues)
 
-      if (
-        (filterKey === 'user' && isUndefined(userPoolList)) ||
-        (sortBy.startsWith('rewards') && isUndefined(rewardsApyMapper)) ||
-        (sortBy === 'volume' && isUndefined(volumeMapper)) ||
-        (sortBy === 'tvl' && isUndefined(tvlMapper))
-      ) {
-        get()[sliceKey].setStateByActiveKey('formStatus', activeKey, {
-          ...DEFAULT_FORM_STATUS,
-          isLoading: true,
-        })
-      } else {
-        get()[sliceKey].setStateByActiveKey('formStatus', activeKey, {
-          ...DEFAULT_FORM_STATUS,
-          isLoading: !storedResults,
-        })
-        get()[sliceKey].setStateByKeys({ activeKey, formValues: cloneDeep(clonedFormValues) })
+      if (!curve || typeof poolDatas === 'undefined') return
 
-        let tablePoolDatas = cloneDeep(poolDatasCachedOrApi)
+      // set loading state
+      let formStatus: FormStatus = { ...DEFAULT_FORM_STATUS, isLoading: true }
+      get()[sliceKey].setStateByActiveKey('formStatus', activeKey, cloneDeep(formStatus))
 
+      const { hideSmallPools, searchText, filterKey, sortBy, sortByOrder } = searchParams
+
+      let tablePoolDatas = cloneDeep(poolDatas)
+
+      if (hideSmallPools) {
+        await get().pools.fetchPoolsTvl(curve, poolDatas, shouldRefetch)
+        tablePoolDatas = get()[sliceKey].filterSmallTvl(curve, tablePoolDatas)
+      }
+
+      // searchText
+      if (searchText) {
+        tablePoolDatas = get()[sliceKey].filterBySearchText(curve, searchText, tablePoolDatas)
+      }
+
+      // filter by 'all | usd | btc | etch...'
+      if (filterKey) {
+        if (filterKey === 'user') await get().user.fetchUserPoolList(curve, shouldRefetch)
         if (
-          filterKey !== 'user' &&
-          hideSmallPools &&
-          (networks[rChainId].showHideSmallPoolsCheckbox || poolDatasCachedOrApi.length > 10)
+          filterKey === 'all' ||
+          filterKey === 'crypto' ||
+          filterKey === 'tricrypto' ||
+          filterKey === 'others' ||
+          filterKey === 'stableng' ||
+          filterKey === 'user'
         ) {
-          tablePoolDatas = get()[sliceKey].filterSmallTvl(tablePoolDatas, tvlMapper, rChainId)
+          tablePoolDatas = get()[sliceKey].filterByKey(curve, filterKey, tablePoolDatas)
+        } else {
+          tablePoolDatas = get()[sliceKey].filterBySearchText(curve, filterKey, tablePoolDatas)
         }
+      }
 
-        // searchText
-        if (searchText) {
-          tablePoolDatas = get()[sliceKey].filterBySearchText(searchText, tablePoolDatas)
-        }
-
-        // filter by 'all | usd | btc | etch...'
-        if (filterKey) {
-          if (
-            filterKey === 'all' ||
-            filterKey === 'crypto' ||
-            filterKey === 'tricrypto' ||
-            filterKey === 'others' ||
-            filterKey === 'stableng' ||
-            filterKey === 'user'
-          ) {
-            tablePoolDatas = get()[sliceKey].filterByKey(filterKey, tablePoolDatas, userPoolList)
-          } else {
-            tablePoolDatas = get()[sliceKey].filterBySearchText(filterKey, tablePoolDatas)
+      // sort by table labels 'pool | factory | type | rewards...'
+      if (sortBy) {
+        const fns: {
+          keys: SortKey[]
+          fn: ((curve: CurveApi, poolDatas: PoolData[], shouldRefetch?: boolean | undefined) => Promise<void>) | null
+        }[] = [
+          { keys: ['tvl'], fn: hideSmallPools ? null : get().pools.fetchPoolsTvl },
+          { keys: ['volume'], fn: get().pools.fetchPoolsVolume },
+          { keys: ['rewardsBase', 'rewardsCrv', 'rewardsOther'], fn: get().pools.fetchPoolsRewardsApy },
+        ]
+        const initialFnIdx = fns.findIndex(({ keys }) => keys.indexOf(sortBy) !== -1)
+        if (initialFnIdx !== -1) {
+          const { fn } = fns[initialFnIdx]
+          if (fn !== null) {
+            await fn(curve, tablePoolDatas, shouldRefetch)
+            tablePoolDatas = get()[sliceKey].sortFn(curve, sortBy, sortByOrder, tablePoolDatas)
           }
         }
 
-        // sort by table labels 'pool | factory | type | rewards...'
-        if (sortBy) {
-          tablePoolDatas = get()[sliceKey].sortFn(
-            sortBy,
-            sortByOrder,
-            tablePoolDatas,
-            rewardsApyMapper,
-            tvlMapper,
-            volumeMapper ?? {}
-          )
+        // fetch rest of functions
+        fns.splice(initialFnIdx, 1)
+        Promise.all([fns.map(({ fn }) => (fn !== null ? fn(curve, tablePoolDatas, shouldRefetch) : () => {}))])
+      }
+
+      // get pool ids
+      const result: string[] = []
+      const hidePoolsMapper = networks[rChainId].customPoolIds
+
+      for (const idx in tablePoolDatas) {
+        const poolData = tablePoolDatas[idx]
+        if (!hidePoolsMapper[poolData.pool.id]) {
+          result.push(poolData.pool.id)
         }
+      }
 
-        // get pool ids
-        const result: string[] = []
-        let resultRewardsOtherCount = 0
-        let resultRewardsCrvCount = 0
-        const hidePoolsMapper = networks[rChainId].customPoolIds
+      // set result
+      get()[sliceKey].setStateByActiveKey('result', activeKey, result)
 
-        for (const idx in tablePoolDatas) {
-          const poolData = tablePoolDatas[idx]
-          if (!hidePoolsMapper[poolData.pool.id]) {
-            const { crv = [], other = [] } = rewardsApyMapper[poolData.pool.id] ?? {}
-            if (other.length > 0) resultRewardsOtherCount++
-            if (crv?.[0] > 0) resultRewardsCrvCount++
-            result.push(poolData.pool.id)
-          }
-        }
+      // set status
+      formStatus.isLoading = false
+      formStatus.noResult = result.length === 0
+      get()[sliceKey].setStateByActiveKey('formStatus', activeKey, formStatus)
 
-        // set result
-        get()[sliceKey].setStateByActiveKey('result', activeKey, result)
-        get()[sliceKey].setStateByKeys({ resultRewardsOtherCount, resultRewardsCrvCount })
-
-        get()[sliceKey].setStateByActiveKey('formStatus', activeKey, {
-          ...get()[sliceKey].formStatus,
-          noResult: result.length === 0,
-          isLoading: false,
-        })
+      // update cache
+      if (activeKey.endsWith('-all-true-volume-desc-')) {
+        get().storeCache.setStateByActiveKey('poolListResult', activeKey, result)
       }
     },
 
@@ -316,19 +308,7 @@ const createPoolListSlice = (set: SetState<State>, get: GetState<State>) => ({
   },
 })
 
-export function getPoolDatasCached(poolsMapperCached: PoolDataCacheMapper | undefined) {
-  const poolDatasCached: PoolDataCache[] = []
-
-  if (poolsMapperCached) {
-    for (const key in poolsMapperCached) {
-      poolDatasCached.push(poolsMapperCached[key])
-    }
-  }
-
-  return poolDatasCached
-}
-
-export function getPoolListActiveKey(chainId: ChainId, searchParams: SearchParams) {
+export function _getActiveKey(chainId: ChainId, searchParams: SearchParams) {
   const { filterKey, hideSmallPools, searchText, sortBy, sortByOrder } = searchParams
   let parsedSearchText = searchText
   if (searchText && searchText.length > 20) {
@@ -340,11 +320,7 @@ export function getPoolListActiveKey(chainId: ChainId, searchParams: SearchParam
 }
 
 // search by tokens or token addresses
-function searchPoolByTokensAddresses(
-  parsedSearchText: string,
-  searchText: string,
-  poolDatas: (PoolDataCache | PoolData)[]
-) {
+function searchPoolByTokensAddresses(parsedSearchText: string, searchText: string, poolDatas: PoolData[]) {
   const searchTextByList = parsedSearchTextToList(parsedSearchText)
 
   return poolDatas.filter((p) => {
@@ -360,8 +336,8 @@ function searchPoolByTokensAddresses(
 }
 
 // search by pool name, address, lpToken and gauge
-function searchPoolByOther(parsedSearchText: string, searchText: string, poolDatas: (PoolDataCache | PoolData)[]) {
-  const fuse = new Fuse<PoolDataCache | PoolData>(poolDatas, {
+function searchPoolByOther(parsedSearchText: string, searchText: string, poolDatas: PoolData[]) {
+  const fuse = new Fuse<PoolData>(poolDatas, {
     ignoreLocation: true,
     threshold: 0.01,
     keys: ['pool.address', 'pool.name', 'pool.gauge', 'pool.lpToken'],
@@ -378,7 +354,7 @@ function searchPoolByOther(parsedSearchText: string, searchText: string, poolDat
 
     if (filteredByOther.length === 0) {
       // increase threshold to allow more results
-      const fuse = new Fuse<PoolDataCache | PoolData>(poolDatas, {
+      const fuse = new Fuse<PoolData>(poolDatas, {
         ignoreLocation: true,
         threshold: 0.08,
         findAllMatches: true,

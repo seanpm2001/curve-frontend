@@ -16,7 +16,7 @@ type SliceState = {
   hasDepositAndStake: { [chainId: string]: boolean }
   hasRouter: { [chainId: string]: boolean }
   poolsMapper: { [chainId: string]: PoolDataCacheMapper }
-  rewardsApyMapper: { [chainId: string]: RewardsApyMapper }
+  poolListResult: { [chainId: string]: string[] }
   routerFormValues: { [chainId: string]: SwapFormValuesCache }
   routerSelectToList: { [chainId: string]: string[] }
   tokensMapper: { [chainId: string]: TokensMapper }
@@ -43,7 +43,7 @@ const DEFAULT_STATE: SliceState = {
   hasDepositAndStake: {},
   hasRouter: {},
   poolsMapper: {},
-  rewardsApyMapper: {},
+  poolListResult: {},
   routerFormValues: {},
   routerSelectToList: {},
   tokensMapper: {},

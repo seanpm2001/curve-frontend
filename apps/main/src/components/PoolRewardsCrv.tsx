@@ -1,25 +1,25 @@
+import type { ChipProps } from '@/ui/Typography/types'
+
 import { t, Trans } from '@lingui/macro'
 import { useMemo } from 'react'
 import styled from 'styled-components'
 
 import { FORMAT_OPTIONS, formatNumber } from '@/ui/utils'
+import useStore from '@/store/useStore'
 
 import { Chip } from '@/ui/Typography'
+import ChipInactive from '@/components/ChipInactive'
 import IconTooltip from '@/ui/Tooltip/TooltipIcon'
 import Icon from '@/ui/Icon'
-import ChipInactive from '@/components/ChipInactive'
 
 const PoolRewardsCrv = ({
   isHighlight,
-  isLoading,
-  poolData,
-  rewardsApy,
-}: {
-  isLoading?: boolean
-  isHighlight?: boolean
-  rewardsApy: RewardsApy | undefined
-  poolData: PoolDataCache | PoolData | undefined
-}) => {
+  rChainId,
+  rPoolId,
+}: ChipProps & { isHighlight?: boolean; rChainId: ChainId; rPoolId: string }) => {
+  const poolData = useStore((state) => state.pools.poolsMapper[rChainId]?.[rPoolId])
+  const rewardsApy = useStore((state) => state.pools.rewardsApyMapper[rChainId]?.[rPoolId])
+
   const { rewardsNeedNudging, areCrvRewardsStuckInBridge } = poolData?.pool?.gaugeStatus || {}
 
   const RewardsNudging = () => (
@@ -69,7 +69,7 @@ const PoolRewardsCrv = ({
   }
 
   const rewardsCrvLabel = useMemo(() => {
-    if (isLoading || typeof poolData === 'undefined') {
+    if (typeof rewardsApy === 'undefined' || typeof poolData === 'undefined') {
       return ''
     } else if (rewardsNeedNudging || areCrvRewardsStuckInBridge) {
       return `${formatNumber(0, { style: 'percent', maximumFractionDigits: 0 })} CRV`
@@ -77,7 +77,7 @@ const PoolRewardsCrv = ({
       return <CrvRewardsText crv={rewardsApy?.crv ?? []} />
     }
     return ''
-  }, [areCrvRewardsStuckInBridge, isLoading, poolData, rewardsApy?.crv, rewardsNeedNudging])
+  }, [areCrvRewardsStuckInBridge, poolData, rewardsApy, rewardsNeedNudging])
 
   return poolData?.pool?.isGaugeKilled ? (
     <ChipInactive>Inactive gauge</ChipInactive>

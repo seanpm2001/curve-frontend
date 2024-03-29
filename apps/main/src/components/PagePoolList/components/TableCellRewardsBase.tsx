@@ -1,19 +1,26 @@
+import type { ChipProps } from '@/ui/Typography/types'
+
 import React from 'react'
 
 import { LARGE_APY } from '@/constants'
 import { FORMAT_OPTIONS, formatNumber } from '@/ui/utils'
+import useStore from '@/store/useStore'
 
 import { Chip } from '@/ui/Typography'
 import IconTooltip from '@/ui/Tooltip/TooltipIcon'
 import TooltipBaseApy from '@/components/PagePoolList/components/TooltipBaseApy'
 
-type Props = {
-  base: RewardBase | undefined
-  isHighlight: boolean
-  poolData: (PoolData | PoolDataCache) | undefined
-}
+const TableCellRewardsBase = ({
+  isHighlight,
+  rChainId,
+  rPoolId,
+  ...rest
+}: ChipProps & { isHighlight?: boolean; rChainId: ChainId; rPoolId: string }) => {
+  const poolData = useStore((state) => state.pools.poolsMapper[rChainId]?.[rPoolId])
+  const rewardsApy = useStore((state) => state.pools.rewardsApyMapper[rChainId]?.[rPoolId])
 
-const TableCellRewardsBase = ({ base, isHighlight, poolData }: Props) => {
+  const { base } = rewardsApy ?? {}
+
   let baseFormatted = ''
   if (base?.day) {
     if (+base.day > LARGE_APY) {
@@ -32,6 +39,7 @@ const TableCellRewardsBase = ({ base, isHighlight, poolData }: Props) => {
     </span>
   ) : (
     <Chip
+      {...rest}
       isBold={isHighlight}
       size="md"
       tooltip={!!base ? <TooltipBaseApy poolData={poolData} baseApy={base} /> : null}

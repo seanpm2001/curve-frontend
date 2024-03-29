@@ -108,8 +108,7 @@ const MySharesStats = ({
           <div>
             {haveCrvRewards && (rewardsNeedNudging || areCrvRewardsStuckInBridge) ? (
               <Chip size="md">
-                {t`Your CRV Rewards tAPR:`}{' '}
-                <PoolRewardsCrv isHighlight={false} poolData={poolData} rewardsApy={rewardsApy} />
+                {t`Your CRV Rewards tAPR:`} <PoolRewardsCrv isHighlight={false} rChainId={rChainId} rPoolId={rPoolId} />
               </Chip>
             ) : (
               <Chip size="md" tooltip={crvRewardsTooltipText} tooltipProps={{ minWidth: '350px' }}>

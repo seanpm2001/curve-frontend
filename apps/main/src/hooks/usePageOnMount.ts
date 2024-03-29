@@ -163,7 +163,8 @@ function usePageOnMount(params: Params, location: Location, navigate: NavigateFu
     if (parsedParams.redirectPathname) {
       navigate(parsedParams.redirectPathname)
     }
-  }, [navigate, parsedParams.redirectPathname])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsedParams.redirectPathname])
 
   // onMount
   useEffect(() => {

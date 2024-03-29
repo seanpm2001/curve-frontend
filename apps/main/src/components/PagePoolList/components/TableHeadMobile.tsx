@@ -1,40 +1,15 @@
-import styled from 'styled-components'
+import { TCell, Thead, Tr } from '@/ui/Table'
+import { cellWidths } from '@/components/PagePoolList/utils'
 
-import { breakpoints } from '@/ui/utils/responsive'
-
-type Props = {
-  showInPoolColumn: boolean
-}
-
-const TableHeadMobile = ({ showInPoolColumn }: Props) => {
+const TableHeadMobile = ({ showInPoolColumn }: { showInPoolColumn: boolean }) => {
   return (
-    <>
-      <colgroup>
-        {showInPoolColumn && <ColInPool className="row-in-pool" />}
-        <Col className="left pool" />
-      </colgroup>
-      <thead>
-        <tr></tr>
-      </thead>
-    </>
+    <Thead>
+      <Tr>
+        {showInPoolColumn && <TCell {...cellWidths.wInPool}></TCell>}
+        <TCell></TCell>
+      </Tr>
+    </Thead>
   )
 }
-
-TableHeadMobile.displayName = 'TableHeadMobile'
-
-const Col = styled.col`
-  @media (min-width: ${breakpoints.lg}rem) {
-    &.pool {
-      min-width: 400px;
-    }
-    &.rewards {
-      min-width: 310px;
-    }
-  }
-`
-
-const ColInPool = styled.col`
-  width: 25px;
-`
 
 export default TableHeadMobile

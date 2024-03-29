@@ -15,7 +15,7 @@ import useStore from '@/store/useStore'
 
 import { ROUTE } from '@/constants'
 import { Chip } from '@/ui/Typography'
-import { Tr, Td } from '@/ui/Table'
+import { Tr, TCell } from '@/ui/Table'
 import Box from '@/ui/Box'
 import Icon from '@/ui/Icon'
 import IconButton from '@/ui/IconButton'
@@ -28,7 +28,6 @@ const TableRow = ({
   tableLabel,
   haveBoost,
   poolData,
-  tokensMapper,
   walletAddress,
   walletPoolData,
 }: {
@@ -36,7 +35,6 @@ const TableRow = ({
   tableLabel: TableLabel
   haveBoost: boolean
   poolData: PoolData
-  tokensMapper: TokensMapper
   walletAddress: string
   walletPoolData: WalletPoolData
 }) => {
@@ -117,18 +115,18 @@ const TableRow = ({
     <>
       {isXSmDown ? (
         <Tr ref={rowRef}>
-          <Td>
+          <TCell>
             {walletPoolData && (
               <Box flex flexJustifyContent="space-between">
                 {imageBaseUrl && (
                   <PoolLabel
+                    rChainId={rChainId}
                     isVisible={isVisible}
                     imageBaseUrl={imageBaseUrl}
                     poolData={poolData}
                     poolListProps={{
                       onClick: () => handleRowClick(walletPoolData.poolId),
                     }}
-                    tokensMapper={tokensMapper}
                   />
                 )}
                 <IconButton onClick={handleShowDetailClick}>
@@ -143,9 +141,10 @@ const TableRow = ({
                   <div>
                     <MobileTableTitle>{tableLabel.baseApy.name}</MobileTableTitle>
                     <TableCellRewards
+                      rChainId={rChainId}
                       poolData={poolData}
-                      rewardsApyKey="baseApy"
                       rewardsApy={poolRewardsApy}
+                      rewardsApyKey="baseApy"
                       sortBy={formValues.sortBy}
                       {...fetchUserPoolBoost}
                     />
@@ -153,6 +152,7 @@ const TableRow = ({
                   <div>
                     <MobileTableTitle>{tableLabel.userCrvApy.name}</MobileTableTitle>
                     <TableCellRewards
+                      rChainId={rChainId}
                       poolData={poolData}
                       rewardsApyKey="rewardsApy"
                       rewardsApy={poolRewardsApy}
@@ -186,22 +186,18 @@ const TableRow = ({
                 </div>
               </MobileTableContent>
             </MobileTableContentWrapper>
-          </Td>
+          </TCell>
         </Tr>
       ) : (
         <Tr ref={rowRef} onClick={() => handleRowClick(walletPoolData.poolId)}>
-          <Td>
+          <TCell>
             {poolData && (
-              <PoolLabel
-                imageBaseUrl={imageBaseUrl}
-                isVisible={isVisible}
-                poolData={poolData}
-                tokensMapper={tokensMapper}
-              />
+              <PoolLabel rChainId={rChainId} imageBaseUrl={imageBaseUrl} isVisible={isVisible} poolData={poolData} />
             )}
-          </Td>
-          <Td className="right">
+          </TCell>
+          <TCell $right>
             <TableCellRewards
+              rChainId={rChainId}
               poolData={poolData}
               rewardsApyKey="all"
               rewardsApy={poolRewardsApy}
@@ -209,21 +205,21 @@ const TableRow = ({
               userCrvApy={userCrvApy}
               {...fetchUserPoolBoost}
             />
-          </Td>
-          <Td className="right">
+          </TCell>
+          <TCell $right>
             <LiquidityUsdComp />
-          </Td>
-          <Td className="right">
+          </TCell>
+          <TCell $right>
             <TableCellProfit
               sortBy={formValues.sortBy}
               baseProfit={baseProfit}
               crvProfit={crvProfit}
               tokensProfit={tokensProfit}
             />
-          </Td>
-          <Td className="right">
+          </TCell>
+          <TCell $right>
             <ClaimableTokens />
-          </Td>
+          </TCell>
         </Tr>
       )}
     </>

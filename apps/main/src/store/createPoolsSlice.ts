@@ -30,6 +30,7 @@ import pick from 'lodash/pick'
 import { INVALID_ADDRESS } from '@/constants'
 import { fulfilledValue, getChainPoolIdActiveKey, getCurvefiUrl, log } from '@/utils'
 import { convertToLocaleTimestamp } from '@/ui/Chart/utils'
+import api from '@/lib/curvejs'
 import networks from '@/networks'
 
 type StateKey = keyof typeof DEFAULT_STATE
@@ -76,14 +77,13 @@ const sliceKey = 'pools'
 // prettier-ignore
 export type PoolsSlice = {
   [sliceKey]: SliceState & {
-    fetchPoolsTvl: (curve: CurveApi, poolDatas: PoolData[]) => Promise<void>
-    fetchPoolsVolume: (chainId: ChainId, poolDatas: PoolData[]) => Promise<void>
-    fetchPools( curve: CurveApi, poolIds: string[], failedFetching24hOldVprice: { [poolAddress:string]: boolean } | null): Promise<{ poolsMapper: PoolDataMapper; poolDatas: PoolData[] } | undefined>
+    fetchPoolsTvl: (curve: CurveApi, poolDatas: PoolData[], shouldRefetch?: boolean) => Promise<void>
+    fetchPoolsVolume: (curve: CurveApi, poolDatas: PoolData[], shouldRefetch?: boolean) => Promise<void>
+    fetchPools(curve: CurveApi, poolIds: string[], failedFetching24hOldVprice: { [poolAddress:string]: boolean } | null): Promise<{ poolsMapper: PoolDataMapper; poolDatas: PoolData[] } | undefined>
     fetchNewPool(curve: CurveApi, poolId: string): Promise<PoolData | undefined>
     fetchBasePools(curve: CurveApi): void
     fetchPoolsChunkRewardsApy(chainId: ChainId, poolDatas: PoolData[]): Promise<RewardsApyMapper>
-    fetchPoolsRewardsApy(chainId: ChainId, poolDatas: PoolData[]): Promise<void>
-    fetchMissingPoolsRewardsApy(chainId: ChainId, poolDatas: PoolData[]): Promise<void>
+    fetchPoolsRewardsApy(curve: CurveApi, poolDatas: PoolData[], shouldRefetch?: boolean): Promise<void>
     fetchPoolStats: (curve: CurveApi, poolData: PoolData) => Promise<void>
     fetchPoolCurrenciesReserves(curve: CurveApi, poolData: PoolData): Promise<void>
     fetchTotalVolumeAndTvl(curve: CurveApi): Promise<void>
@@ -145,15 +145,18 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
   [sliceKey]: {
     ...DEFAULT_STATE,
 
-    fetchPoolsTvl: async (curve, poolDatas) => {
-      log('fetchPoolsTvl', curve.chainId, poolDatas.length)
-      const chainId = curve.chainId
+    fetchPoolsTvl: async (curve, poolDatas, shouldRefetch) => {
+      const { chainId } = curve
+      log('fetchPoolsTvl', chainId, poolDatas.length)
 
-      const { results } = await PromisePool.for(poolDatas)
+      const storedPoolsTvls = get()[sliceKey].tvlMapper[chainId] ?? {}
+      const missing = poolDatas.filter(({ pool }) => typeof storedPoolsTvls[pool.id] === 'undefined')
+
+      if (missing.length === 0 && !shouldRefetch) return
+
+      const { results } = await PromisePool.for(shouldRefetch ? poolDatas : missing)
         .withConcurrency(10)
-        .process(async (poolData) => {
-          return await networks[chainId].api.pool.getTvl(poolData.pool, chainId)
-        })
+        .process(async (poolData) => api.pool.getTvl(poolData.pool, chainId))
 
       const tvlMapper = cloneDeep(get()[sliceKey].tvlMapper[chainId] ?? {})
       for (const idx in results) {
@@ -165,14 +168,18 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       //  update cache
       get().storeCache.setStateByActiveKey('tvlMapper', chainId.toString(), tvlMapper)
     },
-    fetchPoolsVolume: async (chainId, poolDatas) => {
+    fetchPoolsVolume: async (curve, poolDatas, shouldRefetch) => {
+      const { chainId } = curve
       log('fetchPoolsVolume', chainId, poolDatas.length)
 
-      const { results } = await PromisePool.for(poolDatas)
+      const storedVolumeMapper = get()[sliceKey].volumeMapper[chainId] ?? {}
+      const missing = poolDatas.filter(({ pool }) => typeof storedVolumeMapper[pool.id] === 'undefined')
+
+      if (missing.length === 0 && !shouldRefetch) return
+
+      const { results } = await PromisePool.for(shouldRefetch ? poolDatas : missing)
         .withConcurrency(10)
-        .process(async (poolData) => {
-          return await networks[chainId].api.pool.getVolume(poolData.pool)
-        })
+        .process(async (poolData) => await api.pool.getVolume(poolData.pool))
 
       // update volumeMapper
       let volumeMapper: VolumeMapper = cloneDeep(get()[sliceKey].volumeMapper[chainId] ?? {})
@@ -228,14 +235,17 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
         const partialPoolDatas = poolIds.map((poolId) => poolsMapper[poolId])
 
         // fetch tvls and volumes
-        await Promise.all([
-          get().pools.fetchPoolsVolume(chainId, partialPoolDatas),
-          get().pools.fetchPoolsTvl(curve, partialPoolDatas),
-        ])
-        const partialTokens = await get().tokens.setTokensMapper(chainId, partialPoolDatas)
+        // TODO: move this to router swap page
+        if (window.location.hash.split('?')?.[0].endsWith('/swap')) {
+          await Promise.all([
+            get().pools.fetchPoolsVolume(curve, partialPoolDatas),
+            get().pools.fetchPoolsTvl(curve, partialPoolDatas),
+          ])
+          const partialTokens = await get().tokens.setTokensMapper(chainId, partialPoolDatas)
 
-        if (curve.signerAddress) {
-          get().userBalances.fetchUserBalancesByTokens(curve, partialTokens)
+          if (curve.signerAddress) {
+            get().userBalances.fetchUserBalancesByTokens(curve, partialTokens)
+          }
         }
 
         return { poolsMapper, poolDatas: partialPoolDatas }
@@ -292,7 +302,7 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       const { pool, isWrapped, tokens, tokenAddresses } = poolData
 
       const [balancesResp, usdRatesMapper] = await Promise.all([
-        networks[chainId].api.pool.poolBalances(pool, isWrapped),
+        api.pool.poolBalances(pool, isWrapped),
         get().usdRates.fetchUsdRateByTokens(curve, tokenAddresses),
       ])
 
@@ -348,7 +358,7 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
     },
     fetchPoolsChunkRewardsApy: async (chainId, poolDatas) => {
       const { results } = await PromisePool.for(poolDatas).process(
-        async (poolData: PoolData) => await networks[chainId].api.pool.poolAllRewardsApy(chainId, poolData.pool)
+        async (poolData: PoolData) => await api.pool.poolAllRewardsApy(chainId, poolData.pool)
       )
       // create mapper
       const rewardsApyMapper: RewardsApyMapper = cloneDeep(get()[sliceKey].rewardsApyMapper[chainId] ?? {})
@@ -359,8 +369,14 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       get()[sliceKey].setStateByActiveKey('rewardsApyMapper', chainId.toString(), rewardsApyMapper)
       return rewardsApyMapper
     },
-    fetchPoolsRewardsApy: async (chainId, poolDatas) => {
+    fetchPoolsRewardsApy: async (curve, poolDatas, shouldRefetch) => {
+      const { chainId } = curve
       log('fetchPoolsRewardsApy', chainId, poolDatas.length)
+
+      const storedRewardsMapper = get()[sliceKey].rewardsApyMapper[chainId] ?? {}
+      const missing = poolDatas.filter(({ pool }) => typeof storedRewardsMapper[pool.id] === 'undefined')
+
+      if (missing.length === 0 && !shouldRefetch) return
 
       let chunks = [poolDatas]
       let currenChunk = 0
@@ -370,28 +386,8 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       }
 
       while (currenChunk < chunks.length) {
-        const chunkResult = await get().pools.fetchPoolsChunkRewardsApy(chainId, chunks[currenChunk])
+        await get().pools.fetchPoolsChunkRewardsApy(chainId, chunks[currenChunk])
         currenChunk++
-
-        // set result to cache once complete
-        if (typeof chunks[currenChunk] === 'undefined') {
-          get().storeCache.setStateByActiveKey('rewardsApyMapper', chainId.toString(), chunkResult)
-        }
-      }
-    },
-    fetchMissingPoolsRewardsApy: async (chainId, poolDatas) => {
-      const rewardsApyMapper = get().pools.rewardsApyMapper[chainId] ?? {}
-      const missingRewardsApyList = []
-      for (const idx in poolDatas) {
-        const poolData = poolDatas[idx]
-        if (!rewardsApyMapper[poolData.pool.id]) {
-          missingRewardsApyList.push(poolData)
-        }
-      }
-
-      if (missingRewardsApyList.length > 0) {
-        log('fetchMissingPoolsRewardsApy', chainId, missingRewardsApyList.length)
-        get().pools.fetchPoolsRewardsApy(chainId, missingRewardsApyList)
       }
     },
     fetchPoolStats: async (curve, poolData) => {
@@ -402,9 +398,9 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       try {
         const [, , volume, { parameters }] = await Promise.all([
           get().pools.fetchPoolCurrenciesReserves(curve, poolData),
-          get().pools.fetchPoolsRewardsApy(chainId, [poolData]),
-          networks[chainId].api.pool.getVolume(pool),
-          networks[chainId].api.pool.poolParameters(pool),
+          get().pools.fetchPoolsRewardsApy(curve, [poolData]),
+          api.pool.getVolume(pool),
+          api.pool.poolParameters(pool),
         ])
 
         set(
@@ -421,8 +417,8 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       log('fetchTotalVolumeAndTvl', curve.chainId)
       const chainId = curve.chainId
       const [tvlResult, volumeResult] = await Promise.allSettled([
-        networks[chainId].api.network.getTVL(curve),
-        networks[chainId].api.network.getVolume(curve),
+        api.network.getTVL(curve),
+        api.network.getVolume(curve),
       ])
       const tvl = fulfilledValue(tvlResult) ?? 0
       const volumeObj = fulfilledValue(volumeResult) ?? { totalVolume: 0, cryptoVolume: 0, cryptoShare: 0 }
@@ -442,8 +438,8 @@ const createPoolsSlice = (set: SetState<State>, get: GetState<State>): PoolsSlic
       const curve = get().curve
       const chainId = curve.chainId
 
-      const tokens = networks[chainId].api.pool.poolTokens(poolData.pool, isWrapped)
-      const tokenAddresses = networks[chainId].api.pool.poolTokenAddresses(poolData.pool, isWrapped)
+      const tokens = api.pool.poolTokens(poolData.pool, isWrapped)
+      const tokenAddresses = api.pool.poolTokenAddresses(poolData.pool, isWrapped)
       const cPoolData = cloneDeep(poolData)
       cPoolData.isWrapped = isWrapped
       cPoolData.tokens = tokens
@@ -882,7 +878,7 @@ function getPools(
   for (const idx in poolList) {
     const poolId = poolList[idx]
     const pool = curve.getPool(poolId) as Pool
-    const poolData = networks[chainId].api.pool.getPoolData(pool, chainId, poolsMapper[poolId])
+    const poolData = api.pool.getPoolData(pool, chainId, poolsMapper[poolId])
     poolData.failedFetching24hOldVprice = failedFetching24hOldVprice
       ? failedFetching24hOldVprice[pool.address] ?? false
       : false

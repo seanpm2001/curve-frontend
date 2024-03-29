@@ -75,3 +75,18 @@ export type TheadBtnProps = {
   sortByOrder: Order
   handleBtnClickSort: (sortBy: string, sortOrder: Order) => void
 }
+
+export type TableRowProps = {
+  rChainId: ChainId
+  formValues: FormValues
+  searchParams: SearchParams
+  isInPool: boolean | undefined
+  imageBaseUrl: string
+  poolId: string
+  poolData: PoolData
+  poolDataCachedOrApi: PoolDataCache | PoolData | undefined
+  showInPoolColumn: boolean
+  tableLabel: PoolListTableLabel
+  userActiveKey: string
+  handleCellClick(target: EventTarget, formType?: 'swap' | 'withdraw'): void
+}

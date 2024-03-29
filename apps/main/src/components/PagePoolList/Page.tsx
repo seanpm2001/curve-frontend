@@ -8,7 +8,6 @@ import styled from 'styled-components'
 
 import { ROUTE } from '@/constants'
 import { breakpoints } from '@/ui/utils/responsive'
-import { getPoolDatasCached } from '@/store/createPoolListSlice'
 import { getPath } from '@/utils/utilsRouter'
 import { scrollToTop } from '@/utils'
 import networks from '@/networks'
@@ -26,15 +25,11 @@ const Page: NextPage = () => {
   const [searchParams] = useSearchParams()
   const { pageLoaded, routerParams, curve } = usePageOnMount(params, location, navigate)
   const { rChainId } = routerParams
-  const { chainId } = curve ?? {}
 
-  const isLoadingApi = useStore((state) => state.isLoadingApi)
-  const isLoadingPools = useStore((state) => state.pools.poolsLoading[rChainId])
   const poolDatas = useStore((state) => state.pools.pools[rChainId])
   const poolDataMapperCached = useStore((state) => state.storeCache.poolsMapper[rChainId])
-  const fetchMissingPoolsRewardsApy = useStore((state) => state.pools.fetchMissingPoolsRewardsApy)
 
-  const poolDatasCached = getPoolDatasCached(poolDataMapperCached)
+  const poolDatasCached = Object.values(poolDataMapperCached ?? {})
   const poolDatasCachedOrApi = poolDatas ?? poolDatasCached
   const poolDatasLength = (poolDatasCachedOrApi ?? []).length
 
@@ -43,13 +38,6 @@ const Page: NextPage = () => {
   useEffect(() => {
     scrollToTop()
   }, [])
-
-  useEffect(() => {
-    if (pageLoaded && !!chainId && !isLoadingApi && !isLoadingPools) {
-      fetchMissingPoolsRewardsApy(chainId, poolDatas)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chainId, isLoadingPools, isLoadingApi, pageLoaded])
 
   const TABLE_LABEL: PoolListTableLabel = {
     name: { name: t`Pool` },
@@ -76,7 +64,7 @@ const Page: NextPage = () => {
   }
 
   useEffect(() => {
-    if (rChainId) {
+    if (rChainId && pageLoaded) {
       const paramFilterKey = (searchParams.get('filter') || 'all').toLowerCase()
       const paramSortBy = (searchParams.get('sortBy') || 'volume').toLowerCase()
       const paramOrder = (searchParams.get('order') || 'desc').toLowerCase()
@@ -104,7 +92,7 @@ const Page: NextPage = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [curve?.signerAddress, poolDatasLength, rChainId, searchParams])
+  }, [curve?.signerAddress, poolDatasLength, rChainId, searchParams, pageLoaded])
 
   return (
     <>

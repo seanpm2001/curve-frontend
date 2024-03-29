@@ -1,9 +1,15 @@
 import styled from 'styled-components'
 
 const Th = styled.th`
-  padding: 1.5rem 0.5rem 0.25rem 0.5rem;
-  height: 1px;
-  cursor: pointer;
+  padding-bottom: var(--spacing-1);
+  padding-top: var(--spacing-2);
+  padding-left: var(--spacing-2);
+  padding-right: var(--spacing-2);
+  vertical-align: bottom;
+
+  &.noPadding {
+    padding: 0;
+  }
 `
 
 export default Th
