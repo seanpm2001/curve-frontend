@@ -11,7 +11,6 @@ const PageLockedCrv = dynamic(() => import('@/components/PageCrvLocker/Page'), {
 const PagePoolTransfer = dynamic(() => import('@/components/PagePool/Page'), { ssr: false })
 const PagePools = dynamic(() => import('@/components/PagePoolList/Page'), { ssr: false })
 const PageSwap = dynamic(() => import('@/components/PageRouterSwap/Page'), { ssr: false })
-const Page404 = dynamic(() => import('@/components/Page404/Page'), { ssr: false })
 const PageCreatePool = dynamic(() => import('@/components/PageCreatePool/Page'), { ssr: false })
 const PageDeployGauge = dynamic(() => import('@/components/PageDeployGauge/Page'), { ssr: false })
 const PageIntegrations = dynamic(() => import('@/components/PageIntegrations/Page'), { ssr: false })
@@ -51,8 +50,6 @@ const App: NextPage = () => {
       <Route path="/compensation" element={<Navigate to={`/ethereum${ROUTE.PAGE_COMPENSATION}`} replace />} />
       <Route path="/risk-disclaimer" element={<Navigate to={`/ethereum${ROUTE.PAGE_RISK_DISCLAIMER}`} replace />} />
       <Route path="/" element={<Navigate to={`/ethereum${ROUTE.PAGE_SWAP}`} />} />
-      <Route path="404" element={<Page404 />} />
-      <Route path="*" element={<Page404 />} />
     </Routes>
   )
 }
