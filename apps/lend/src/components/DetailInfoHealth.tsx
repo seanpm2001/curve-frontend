@@ -4,12 +4,12 @@ import styled from 'styled-components'
 
 import { DEFAULT_HEALTH_MODE } from '@/components/PageLoanManage/utils'
 import { formatNumber } from '@/ui/utils'
+import { helpers } from '@/lib/apiLending'
+import useStore from '@/store/useStore'
 
 import DetailInfo from '@/ui/DetailInfo'
 import Icon from '@/ui/Icon'
 import IconTooltip from '@/ui/Tooltip/TooltipIcon'
-import { helpers } from '@/lib/apiLending'
-import useStore from '@/store/useStore'
 
 type FormType = 'create-loan' | 'collateral-decrease' | ''
 
@@ -62,8 +62,6 @@ const DetailInfoHealth = ({
           bands,
           formType,
           healthFull,
-          healthNotFull,
-          true,
           currentHealthModeColorKey ?? '',
           newHealthModeColorKey ?? ''
         )
@@ -87,20 +85,9 @@ const DetailInfoHealth = ({
   // current health mode
   useEffect(() => {
     if (typeof activeBand !== 'undefined' && userLoanDetails) {
-      const { healthFull, healthNotFull, bands } = userLoanDetails
+      const { healthFull, bands } = userLoanDetails
       setCurrentHealthMode(
-        getHealthMode(
-          owmData,
-          activeBand,
-          amount,
-          bands,
-          formType,
-          healthFull,
-          healthNotFull,
-          false,
-          '',
-          newHealthModeColorKey
-        )
+        getHealthMode(owmData, activeBand, amount, bands, formType, healthFull, '', newHealthModeColorKey)
       )
     }
   }, [activeBand, amount, formType, newHealthModeColorKey, owmData, userLoanDetails])
@@ -163,8 +150,6 @@ export function getHealthMode(
   bands: [number, number] | number[],
   formType: FormType,
   healthFull: string,
-  healthNotFull: string,
-  isNew: boolean,
   currColorKey: string,
   newColorKey: string
 ) {
@@ -197,7 +182,7 @@ export function getHealthMode(
     }
 
     healthMode = {
-      percent: healthNotFull,
+      percent: healthFull,
       colorKey: 'close_to_liquidation',
       icon: <Icon name="FavoriteHalf" size={20} />,
       message,

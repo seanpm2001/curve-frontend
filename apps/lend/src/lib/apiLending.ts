@@ -487,9 +487,9 @@ const user = {
         results[userActiveKey] = {
           details: {
             state,
-            health: isCloseToLiquidation ? healthNotFull : healthFull,
+            health: healthFull,
             healthFull,
-            healthNotFull,
+            healthNotFull, // healthNotFull: how much you have if you are entering liquidation range (not display in UI)
             bands: reversedUserBands,
             bandsBalances: parsedBandsBalances,
             bandsPct: range ? await owm.calcRangePct(range) : '0',

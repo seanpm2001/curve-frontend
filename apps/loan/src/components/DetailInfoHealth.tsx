@@ -4,7 +4,6 @@ import styled from 'styled-components'
 
 import { DEFAULT_HEALTH_MODE } from '@/components/PageLoanManage/utils'
 import { getIsUserCloseToLiquidation } from '@/utils/utilsCurvejs'
-import { parseHealthPercent } from '@/utils/utilsLoan'
 import { formatNumber } from '@/ui/utils'
 
 import DetailInfo from '@/ui/DetailInfo'
@@ -58,8 +57,6 @@ const DetailInfoHealth = ({
           bands,
           formType,
           healthFull,
-          healthNotFull,
-          true,
           currentHealthModeColorKey ?? '',
           newHealthModeColorKey ?? ''
         )
@@ -82,19 +79,9 @@ const DetailInfoHealth = ({
   // current health mode
   useEffect(() => {
     if (typeof activeBand !== 'undefined' && userLoanDetails) {
-      const { healthFull, healthNotFull, userBands } = userLoanDetails
+      const { healthFull, userBands } = userLoanDetails
       setCurrentHealthMode(
-        getHealthMode(
-          activeBand,
-          amount,
-          userBands,
-          formType,
-          healthFull,
-          healthNotFull,
-          false,
-          '',
-          newHealthModeColorKey
-        )
+        getHealthMode(activeBand, amount, userBands, formType, healthFull, '', newHealthModeColorKey)
       )
     }
   }, [activeBand, amount, formType, newHealthModeColorKey, userLoanDetails])
@@ -121,7 +108,7 @@ const DetailInfoHealth = ({
         healthPercent && currentHealthMode.percent ? (
           <span>
             <HealthPercent colorKey={currentHealthMode.colorKey}>
-              {parseHealthPercent(currentHealthMode.percent)}
+              {formatNumber(currentHealthMode.percent, { style: 'percent', maximumFractionDigits: 2 })}
             </HealthPercent>{' '}
             <HealthPercent colorKey={healthMode.colorKey}>
               <Icon name="ArrowRight" size={16} className="svg-arrow" />{' '}
@@ -156,8 +143,6 @@ export function getHealthMode(
   bands: [number, number] | number[],
   formType: FormType,
   healthFull: string,
-  healthNotFull: string,
-  isNew: boolean,
   currColorKey: string,
   newColorKey: string
 ) {
@@ -189,7 +174,7 @@ export function getHealthMode(
     }
 
     healthMode = {
-      percent: healthNotFull,
+      percent: healthFull,
       colorKey: 'close_to_liquidation',
       icon: <Icon name="FavoriteHalf" size={20} />,
       message,
