@@ -162,9 +162,10 @@ const createMarketsSlice = (set: SetState<State>, get: GetState<State>): Markets
       await Promise.all(keys.map((key) => get()[sliceKey].fetchDatas(key, api, [owmData], shouldRefetch)))
     },
     fetchVaultPricePerShare: async (chainId, { owm }, shouldRefetch) => {
+      const sliceState = get()[sliceKey]
       let resp = { pricePerShare: '', error: '' }
 
-      const { pricePerShare: foundPricePerShare } = get()[sliceKey].vaultPricePerShare[chainId]?.[owm.id] ?? {}
+      const { pricePerShare: foundPricePerShare } = sliceState.vaultPricePerShare[chainId]?.[owm.id] ?? {}
       if (foundPricePerShare && +foundPricePerShare > 0 && !shouldRefetch) {
         resp.pricePerShare = foundPricePerShare
       } else {
@@ -175,9 +176,10 @@ const createMarketsSlice = (set: SetState<State>, get: GetState<State>): Markets
           resp.error = getErrorMessage(error, 'error-api')
         }
 
-        const storedVaultPricePerShare = cloneDeep(get()[sliceKey].vaultPricePerShare[chainId] ?? {})
-        storedVaultPricePerShare[owm.id] = resp
-        get()[sliceKey].setStateByActiveKey('vaultPricePerShare', chainId.toString(), storedVaultPricePerShare)
+        sliceState.setStateByActiveKey('vaultPricePerShare', chainId.toString(), {
+          ...(get()[sliceKey].vaultPricePerShare[chainId] ?? {}),
+          [owm.id]: resp,
+        })
       }
     },
 
