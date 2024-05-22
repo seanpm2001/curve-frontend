@@ -1,21 +1,6 @@
-export type FilterKey =
-  | 'all'
-  | 'automation'
-  | 'bots'
-  | 'defi'
-  | 'gameNft'
-  | 'learningData'
-  | 'votingIncentives'
-  | 'portfolio'
-  | 'crvusd'
-  | 'other'
+import type { FilterKey } from '@/ui/Integration/types'
 
 export type FormValues = {
   filterKey: FilterKey
   searchText: string
-}
-
-export type FormStatus = {
-  isLoading: boolean
-  noResult: boolean
 }

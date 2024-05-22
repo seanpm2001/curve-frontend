@@ -1,5 +1,5 @@
-import type { FilterKey, FormValues } from '@/components/PageIntegrations/types'
-import type { IntegrationsTags } from '@/ui/Integration/types'
+import type { FormValues } from '@/components/PageIntegrations/types'
+import type { FilterKey, IntegrationsTags } from '@/ui/Integration/types'
 import type { NavigateFunction, Params } from 'react-router'
 
 import { Trans } from '@lingui/macro'
@@ -9,15 +9,17 @@ import styled from 'styled-components'
 import { ROUTE } from '@/constants'
 import { breakpoints } from '@/ui/utils'
 import { getPath } from '@/utils/utilsRouter'
+import { parseSearchParams } from '@/components/PageIntegrations/utils'
 import { useFocusRing } from '@react-aria/focus'
+import { visibleNetworksList } from '@/networks'
 import networks, { networksIdMapper } from '@/networks'
 import useStore from '@/store/useStore'
 
 import Box from '@/ui/Box'
 import IntegrationAppComp from '@/ui/Integration/IntegrationApp'
 import SearchInput from '@/ui/SearchInput'
-import TableButtonFilters from '@/ui/TableButtonFilters'
-import TableButtonFiltersMobile from '@/ui/TableButtonFiltersMobile'
+import SelectIntegrationTags from '@/ui/Integration/SelectIntegrationTags'
+import SelectNetwork from '@/ui/Select/SelectNetwork'
 
 // Update integrations list repo: https://github.com/curvefi/curve-external-integrations
 const IntegrationsComp = ({
@@ -35,18 +37,40 @@ const IntegrationsComp = ({
 }) => {
   const { isFocusVisible, focusProps } = useFocusRing()
 
+  const connectState = useStore((state) => state.connectState)
   const formStatus = useStore((state) => state.integrations.formStatus)
   const formValues = useStore((state) => state.integrations.formValues)
   const integrationsList = useStore((state) => state.integrations.integrationsList)
-  const isXSmDown = useStore((state) => state.layout.isXSmDown)
   const results = useStore((state) => state.integrations.results)
   const setFormValues = useStore((state) => state.integrations.setFormValues)
+
+  const { filterKey, filterNetworkId } = parseSearchParams(searchParams, rChainId, integrationsTags)
 
   const updateFormValues = useCallback(
     (updatedFormValues: Partial<FormValues>) => {
       setFormValues({ ...formValues, ...updatedFormValues }, rChainId)
     },
     [formValues, rChainId, setFormValues]
+  )
+
+  const updatePath = useCallback(
+    ({ filterKey, filterNetworkId }: { filterKey?: React.Key; filterNetworkId?: React.Key }) => {
+      const pSearchParams = parseSearchParams(searchParams, rChainId, integrationsTags)
+      let pathname = getPath(params, `${ROUTE.PAGE_INTEGRATIONS}`)
+
+      // get filter Key
+      let pFilterKey = filterKey ?? pSearchParams.filterKey ?? ''
+      pFilterKey = pFilterKey && pFilterKey === 'all' ? '' : pFilterKey
+      if (pFilterKey) pathname += `?filter=${pFilterKey}`
+
+      // get filter NetworkId
+      let pFilterNetworkId = filterNetworkId ?? pSearchParams.filterNetworkId ?? ''
+      pFilterNetworkId = pFilterNetworkId && pFilterNetworkId == rChainId ? '' : pFilterNetworkId
+      if (pFilterNetworkId) pathname += `${pFilterKey ? '&' : '?'}networkId=${pFilterNetworkId}`
+
+      navigate(pathname)
+    },
+    [integrationsTags, navigate, params, rChainId, searchParams]
   )
 
   const filterKeyLabel = useMemo(() => {
@@ -67,49 +91,53 @@ const IntegrationsComp = ({
     return parsed
   }, [integrationsTags, searchParams])
 
+  const integrationsTagsList = useMemo(() => {
+    return integrationsTags ? Object.entries(integrationsTags).map(([, v]) => v) : []
+  }, [integrationsTags])
+
   // update form if url have filter params
   useEffect(() => {
     updateFormValues({ filterKey: parsedSearchParams.filterKey })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedSearchParams.filterKey, rChainId])
 
-  const updateRouteFilterKey = (filterKey: FilterKey) => {
-    const pathname = getPath(params, `${ROUTE.PAGE_INTEGRATIONS}?filter=${filterKey}`)
-    navigate(pathname)
-  }
-
   const parsedResults = results === null ? integrationsList : results
 
   return (
     <>
-      <Box grid gridGap={3} padding="1rem 0 2rem 0">
-        <StyledSearchInput
-          id="inp-search-integrations"
-          className={isFocusVisible ? 'focus-visible' : ''}
-          {...focusProps}
-          value={formValues.searchText}
-          handleInputChange={(val) => updateFormValues({ searchText: val })}
-          handleSearchClose={() => updateFormValues({ searchText: '' })}
-        />
-        {!isXSmDown ? (
-          <TableButtonFilters
-            disabled={false}
-            filters={integrationsTags}
-            filterKey={formValues.filterKey}
-            isLoading={formStatus.isLoading}
-            resultsLength={results?.length}
-            updateRouteFilterKey={updateRouteFilterKey}
+      <StyledFiltersWrapper>
+        <Box gridArea="search" fillWidth>
+          <StyledSearchInput
+            id="inp-search-integrations"
+            className={isFocusVisible ? 'focus-visible' : ''}
+            {...focusProps}
+            value={formValues.searchText}
+            handleInputChange={(val) => updateFormValues({ searchText: val })}
+            handleSearchClose={() => updateFormValues({ searchText: '' })}
           />
-        ) : (
-          <Box flex gridColumnGap={2} margin="0 0 0 1rem">
-            <TableButtonFiltersMobile
-              filters={integrationsTags}
-              filterKey={formValues.filterKey}
-              updateRouteFilterKey={updateRouteFilterKey}
-            />
-          </Box>
-        )}
-      </Box>
+        </Box>
+        <Box grid gridArea="filters" flexJustifyContent="flex-start" gridAutoFlow="column" gridGap={2}>
+          <SelectIntegrationTags
+            integrationsTagsList={integrationsTagsList}
+            filterKey={filterKey}
+            formStatus={formStatus}
+            updatePath={updatePath}
+          />
+          <SelectNetwork
+            connectState={connectState}
+            hideIcon
+            items={visibleNetworksList}
+            minWidth="8.5em"
+            selectedKey={filterNetworkId}
+            onSelectionChange={(filterNetworkId: React.Key) => updatePath({ filterNetworkId })}
+            onSelectionDelete={
+              filterNetworkId && +filterNetworkId !== rChainId
+                ? () => updatePath({ filterNetworkId: rChainId })
+                : undefined
+            }
+          />
+        </Box>
+      </StyledFiltersWrapper>
       {formStatus.noResult ? (
         <NoResultWrapper flex flexJustifyContent="center" padding="3rem 0">
           <Trans>
@@ -134,10 +162,17 @@ const IntegrationsComp = ({
                       {Object.keys(app.networks).map((network) => {
                         const networkName = network as NetworkEnum
                         if (networkName in networksIdMapper) {
-                          // @ts-ignore
                           const chainId = networksIdMapper[networkName]
-                          const Icon = networks[chainId as ChainId].icon
-                          return <Icon aria-label={chainId} title={chainId} width="18" height="18" />
+                          const Icon = networks[chainId].icon
+                          return (
+                            <Icon
+                              key={networkName}
+                              aria-label={networkName}
+                              title={networkName}
+                              width="18"
+                              height="18"
+                            />
+                          )
                         }
                         return null
                       })}
@@ -153,6 +188,23 @@ const IntegrationsComp = ({
     </>
   )
 }
+
+const StyledFiltersWrapper = styled.div`
+  display: grid;
+  grid-row-gap: 1rem;
+  grid-template-areas:
+    'grid-search'
+    'grid-filters';
+  margin: 1rem;
+
+  @media (min-width: ${breakpoints.sm}rem) {
+    grid-gap: 0.5rem;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: 'grid-filters grid-search';
+    justify-content: flex-start;
+    margin: 1rem 0;
+  }
+`
 
 const IntegrationsWrapper = styled(Box)`
   justify-content: center;
@@ -170,12 +222,14 @@ const IntegrationsWrapper = styled(Box)`
 `
 
 const StyledSearchInput = styled(SearchInput)`
-  margin-left: 1rem;
-  margin-right: 1rem;
+  min-height: var(--height-large);
+
+  button {
+    min-height: 100%;
+  }
 
   @media (min-width: ${breakpoints.sm}rem) {
-    margin-left: 0;
-    margin-right: 0;
+    min-height: 100%;
   }
 `
 

@@ -18,7 +18,7 @@ import Box from '@/ui/Box'
 import IntegrationAppComp from '@/ui/Integration/IntegrationApp'
 import SearchInput from '@/ui/SearchInput'
 import SelectNetwork from '@/ui/Select/SelectNetwork'
-import SelectIntegrationTags from '@/components/PageIntegrations/components/SelectIntegrationTags'
+import SelectIntegrationTags from '@/ui/Integration/SelectIntegrationTags'
 
 // Update integrations list repo: https://github.com/curvefi/curve-external-integrations
 const IntegrationsComp = ({

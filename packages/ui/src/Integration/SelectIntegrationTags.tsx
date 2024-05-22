@@ -1,13 +1,11 @@
-import type { FormStatus } from '@/components/PageIntegrations/types'
-import type { IntegrationTag } from '@/ui/Integration/types'
+import type { FormStatus, IntegrationTag } from 'ui/src/Integration/types'
 
 import React from 'react'
 import { Item } from 'react-stately'
-import { t } from '@lingui/macro'
 import styled from 'styled-components'
 
-import Icon from '@/ui/Icon'
-import Select from '@/ui/Select'
+import Icon from 'ui/src/Icon'
+import Select from 'ui/src/Select'
 
 const SelectIntegrationTags = ({
   integrationsTagsList,
@@ -22,7 +20,7 @@ const SelectIntegrationTags = ({
 }) => {
   return (
     <Select
-      aria-label={t`Select tag`}
+      aria-label="Select tag"
       items={integrationsTagsList}
       loading={formStatus.isLoading}
       minWidth="200px"
