@@ -36,7 +36,7 @@ const App: NextPage = () => {
       <Route path=":locale">{SubRoutes}</Route>
       <Route path="/markets/*" element={<Navigate to={`/ethereum${ROUTE.PAGE_MARKETS}`} replace />} />
       <Route path="/risk-disclaimer" element={<Navigate to={`/ethereum${ROUTE.PAGE_RISK_DISCLAIMER}`} replace />} />
-      <Route path="/integrations" element={<Navigate to={`/ethereum${ROUTE.PAGE_INTEGRATIONS}`} replace />} />
+      <Route path="/integrations" element={<PageIntegrations />} />
       <Route path="/" element={<Navigate to={`/ethereum/markets`} replace />} />
       <Route path="404" element={<Page404 />} />
       <Route path="*" element={<Page404 />} />
