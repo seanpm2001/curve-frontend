@@ -1,17 +1,16 @@
 import type { FormValues } from '@/components/PageIntegrations/types'
-import type { FilterKey, IntegrationsTags } from '@/ui/Integration/types'
+import type { IntegrationsTags } from '@/ui/Integration/types'
 import type { NavigateFunction, Params } from 'react-router'
 
-import { Trans } from '@lingui/macro'
 import React, { useCallback, useEffect, useMemo } from 'react'
+import { Trans } from '@lingui/macro'
+import { useFocusRing } from '@react-aria/focus'
 import styled from 'styled-components'
 
 import { ROUTE } from '@/constants'
 import { breakpoints } from '@/ui/utils'
 import { getPath } from '@/utils/utilsRouter'
 import { parseSearchParams } from '@/components/PageIntegrations/utils'
-import { useFocusRing } from '@react-aria/focus'
-import { visibleNetworksList } from '@/networks'
 import networks, { networksIdMapper } from '@/networks'
 import useStore from '@/store/useStore'
 
@@ -19,7 +18,6 @@ import Box from '@/ui/Box'
 import IntegrationAppComp from '@/ui/Integration/IntegrationApp'
 import SearchInput from '@/ui/SearchInput'
 import SelectIntegrationTags from '@/ui/Integration/SelectIntegrationTags'
-import SelectNetwork from '@/ui/Select/SelectNetwork'
 
 // Update integrations list repo: https://github.com/curvefi/curve-external-integrations
 const IntegrationsComp = ({
@@ -37,7 +35,6 @@ const IntegrationsComp = ({
 }) => {
   const { isFocusVisible, focusProps } = useFocusRing()
 
-  const connectState = useStore((state) => state.connectState)
   const formStatus = useStore((state) => state.integrations.formStatus)
   const formValues = useStore((state) => state.integrations.formValues)
   const integrationsList = useStore((state) => state.integrations.integrationsList)
@@ -48,9 +45,9 @@ const IntegrationsComp = ({
 
   const updateFormValues = useCallback(
     (updatedFormValues: Partial<FormValues>) => {
-      setFormValues({ ...formValues, ...updatedFormValues }, rChainId)
+      setFormValues({ ...formValues, ...updatedFormValues })
     },
-    [formValues, rChainId, setFormValues]
+    [formValues, setFormValues]
   )
 
   const updatePath = useCallback(
@@ -79,27 +76,15 @@ const IntegrationsComp = ({
     }
   }, [integrationsTags, formValues.filterKey])
 
-  // get filterKey from url
-  const parsedSearchParams = useMemo(() => {
-    const searchParamsFilterKey = searchParams.get('filter')
-    let parsed: { filterKey: FilterKey } = { filterKey: 'all' }
-
-    if (searchParamsFilterKey) {
-      parsed.filterKey = (integrationsTags?.[searchParamsFilterKey]?.id ?? 'all') as FilterKey
-    }
-
-    return parsed
-  }, [integrationsTags, searchParams])
-
   const integrationsTagsList = useMemo(() => {
     return integrationsTags ? Object.entries(integrationsTags).map(([, v]) => v) : []
   }, [integrationsTags])
 
   // update form if url have filter params
   useEffect(() => {
-    updateFormValues({ filterKey: parsedSearchParams.filterKey })
+    updateFormValues({ filterKey, filterNetworkId })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsedSearchParams.filterKey, rChainId])
+  }, [filterKey, filterNetworkId])
 
   const parsedResults = results === null ? integrationsList : results
 
@@ -122,19 +107,6 @@ const IntegrationsComp = ({
             filterKey={filterKey}
             formStatus={formStatus}
             updatePath={updatePath}
-          />
-          <SelectNetwork
-            connectState={connectState}
-            hideIcon
-            items={visibleNetworksList}
-            minWidth="8.5em"
-            selectedKey={filterNetworkId}
-            onSelectionChange={(filterNetworkId: React.Key) => updatePath({ filterNetworkId })}
-            onSelectionDelete={
-              filterNetworkId && +filterNetworkId !== rChainId
-                ? () => updatePath({ filterNetworkId: rChainId })
-                : undefined
-            }
           />
         </Box>
       </StyledFiltersWrapper>

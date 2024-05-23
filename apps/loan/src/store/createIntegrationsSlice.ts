@@ -3,7 +3,6 @@ import type { State } from '@/store/useStore'
 import type { FormValues } from '@/components/PageIntegrations/types'
 import type { FormStatus, IntegrationApp, IntegrationsTags } from '@/ui/Integration/types'
 
-import cloneDeep from 'lodash/cloneDeep'
 import produce from 'immer'
 import sortBy from 'lodash/sortBy'
 
@@ -21,6 +20,7 @@ type StateKey = keyof typeof DEFAULT_STATE
 
 export const DEFAULT_FORM_VALUES: FormValues = {
   filterKey: 'all',
+  filterNetworkId: '',
   searchText: '',
 }
 
@@ -39,11 +39,13 @@ type SliceState = {
 
 const sliceKey = 'integrations'
 
+// prettier-ignore
 export type IntegrationsSlice = {
   [sliceKey]: SliceState & {
     init(chainId: ChainId | ''): Promise<void>
-    setFormValues(updatedFormValues: FormValues, chainId: ChainId | ''): void
+    setFormValues(updatedFormValues: FormValues): void
 
+    // helpers
     setStateByActiveKey<T>(key: StateKey, activeKey: string, value: T): void
     setStateByKey<T>(key: StateKey, value: T): void
     setStateByKeys(SliceState: Partial<SliceState>): void
@@ -70,7 +72,8 @@ const createIntegrationsSlice = (set: SetState<State>, get: GetState<State>): In
       if (integrationsList === null) {
         const [integrationsListResult] = await Promise.allSettled([httpFetcher(listUrl)])
         const integrationsList = fulfilledValue(integrationsListResult) ?? []
-        sliceState.setStateByKey('integrationsList', parseIntegrationsList(integrationsList, 'crvusd'))
+        // TODO: change appName to `crvusd` once it is ready to show only `crvusd` app list
+        sliceState.setStateByKey('integrationsList', parseIntegrationsList(integrationsList, ''))
       }
 
       if (integrationsTags === null) {
@@ -79,9 +82,9 @@ const createIntegrationsSlice = (set: SetState<State>, get: GetState<State>): In
         sliceState.setStateByKey('integrationsTags', parseIntegrationsTags(integrationsTags))
       }
     },
-    setFormValues: (updatedFormValues: FormValues, chainId: ChainId | '') => {
+    setFormValues: (updatedFormValues: FormValues) => {
       const { integrationsTags, integrationsList, ...sliceState } = get()[sliceKey]
-      const { searchText, filterKey } = updatedFormValues
+      const { searchText, filterKey, filterNetworkId } = updatedFormValues
 
       // loading
       sliceState.setStateByKeys({
@@ -91,10 +94,10 @@ const createIntegrationsSlice = (set: SetState<State>, get: GetState<State>): In
       })
 
       if (integrationsList) {
-        let results = cloneDeep(integrationsList)
+        let results = integrationsList
 
-        if (chainId) {
-          results = filterByNetwork(networks[chainId]?.id, results)
+        if (filterNetworkId) {
+          results = filterByNetwork(networks[+filterNetworkId as ChainId]?.id, results)
         }
 
         if (searchText) {

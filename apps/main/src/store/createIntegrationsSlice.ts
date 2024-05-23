@@ -40,11 +40,13 @@ type SliceState = {
 
 const sliceKey = 'integrations'
 
+// prettier-ignore
 export type IntegrationsSlice = {
   [sliceKey]: SliceState & {
     init(chainId: ChainId | ''): Promise<void>
     setFormValues(updatedFormValues: FormValues): void
 
+    // helpers
     setStateByActiveKey<T>(key: StateKey, activeKey: string, value: T): void
     setStateByKey<T>(key: StateKey, value: T): void
     setStateByKeys(SliceState: Partial<SliceState>): void

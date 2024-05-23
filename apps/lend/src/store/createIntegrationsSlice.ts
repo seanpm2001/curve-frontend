@@ -20,6 +20,7 @@ type StateKey = keyof typeof DEFAULT_STATE
 
 export const DEFAULT_FORM_VALUES: FormValues = {
   filterKey: 'all',
+  filterNetworkId: '',
   searchText: '',
 }
 
@@ -42,7 +43,7 @@ const sliceKey = 'integrations'
 export type IntegrationsSlice = {
   [sliceKey]: SliceState & {
     init(chainId: ChainId | ''): Promise<void>
-    setFormValues(updatedFormValues: FormValues, chainId: ChainId | ''): void
+    setFormValues(updatedFormValues: FormValues): void
 
     // helpers
     setStateByActiveKey<T>(key: StateKey, activeKey: string, value: T): void
@@ -70,17 +71,18 @@ const createIntegrationsSlice = (set: SetState<State>, get: GetState<State>): In
 
       if (integrationsList === null) {
         const [integrationsListResult] = await Promise.allSettled([httpFetcher(listUrl)])
-        const integrationsList = fulfilledValue(integrationsListResult)
-        sliceState.setStateByKey('integrationsList', parseIntegrationsList(integrationsList, 'lend'))
+        const integrationsList = fulfilledValue(integrationsListResult) ?? []
+        // TODO: change appName to `lend` once it is ready to show only `lend` app list
+        sliceState.setStateByKey('integrationsList', parseIntegrationsList(integrationsList, ''))
       }
 
       if (integrationsTags === null) {
         const [integrationsTagsResult] = await Promise.allSettled([httpFetcher(tagsUrl)])
-        let integrationsTags = fulfilledValue(integrationsTagsResult)
+        let integrationsTags = fulfilledValue(integrationsTagsResult) ?? []
         sliceState.setStateByKey('integrationsTags', parseIntegrationsTags(integrationsTags))
       }
     },
-    setFormValues: (updatedFormValues: FormValues, chainId: ChainId | '') => {
+    setFormValues: (updatedFormValues: FormValues) => {
       const { integrationsTags, integrationsList, ...sliceState } = get()[sliceKey]
 
       // loading
@@ -90,13 +92,13 @@ const createIntegrationsSlice = (set: SetState<State>, get: GetState<State>): In
         results: [],
       })
 
-      const { searchText, filterKey } = updatedFormValues
+      const { searchText, filterKey, filterNetworkId } = updatedFormValues
 
       if (integrationsList) {
         let results = integrationsList
 
-        if (chainId) {
-          results = filterByNetwork(networks[chainId]?.id, results)
+        if (filterNetworkId) {
+          results = filterByNetwork(networks[+filterNetworkId as ChainId]?.id, results)
         }
 
         if (searchText) {

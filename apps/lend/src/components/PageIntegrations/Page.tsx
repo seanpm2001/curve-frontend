@@ -21,7 +21,8 @@ const Page: NextPage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { routerParams } = usePageOnMount(params, location, navigate, true)
-  const { rChainId } = routerParams
+  const { rNetworkIdx } = routerParams
+  const rChainId = rNetworkIdx === -1 ? '' : routerParams.rChainId
 
   const init = useStore((state) => state.integrations.init)
   const integrationsTags = useStore((state) => state.integrations.integrationsTags)
