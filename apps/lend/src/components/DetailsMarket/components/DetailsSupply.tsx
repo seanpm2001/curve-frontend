@@ -20,6 +20,7 @@ import CellSupplyTotalLiquidity from '@/components/SharedCellData/CellSupplyTota
 import DetailsSupplyRewards from '@/components/DetailsMarket/components/DetailsSupplyRewards'
 import DetailsContracts from '@/components/DetailsMarket/components/DetailsContracts'
 import MarketParameters from '@/components/DetailsMarket/components/MarketParameters'
+import DetailSupplyVaultTotalStaked from '@/components/DetailsMarket/components/DetailSupplyVaultTotalStaked'
 
 const DetailsSupply = ({ type, ...pageProps }: PageContentProps & { type: MarketListType }) => {
   const { rChainId, rOwmId, owmDataCachedOrApi, borrowed_token, collateral_token } = pageProps
@@ -69,6 +70,7 @@ const DetailsSupply = ({ type, ...pageProps }: PageContentProps & { type: Market
       <StyledDarkContent>
         <Box grid gridGap={3}>
           <MarketParameters rChainId={rChainId} rOwmId={rOwmId} type="supply" />
+          <DetailSupplyVaultTotalStaked rChainId={rChainId} rOwmId={rOwmId} />
           <div>
             <DetailsContracts
               rChainId={rChainId}
