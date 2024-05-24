@@ -1,6 +1,7 @@
 import { Contract, Interface, JsonRpcProvider } from 'ethers'
 import { useCallback, useEffect, useState } from 'react'
 
+import { INVALID_ADDRESS } from '@/constants'
 import networks from '@/networks'
 import useStore from '@/store/useStore'
 
@@ -17,18 +18,16 @@ const useAbiGaugeTotalSupply = (
   const getContract = useCallback(
     async (jsonModuleName: string, contractAddress: string, provider: Provider | JsonRpcProvider) => {
       try {
-        const abi = await import(`@/abis/${jsonModuleName}.json`).then((module) => module.default.abi)
+        if (contractAddress !== INVALID_ADDRESS) {
+          const abi = await import(`@/abis/${jsonModuleName}.json`).then((module) => module.default.abi)
 
-        if (!abi) {
-          console.error('cannot find abi')
-          return null
-        } else {
-          const iface = new Interface(abi)
-          return new Contract(contractAddress, iface.format(), provider)
+          if (abi) {
+            const iface = new Interface(abi)
+            return new Contract(contractAddress, iface.format(), provider)
+          }
         }
       } catch (error) {
         console.error(error)
-        return null
       }
     },
     []
@@ -41,7 +40,10 @@ const useAbiGaugeTotalSupply = (
         : getProvider('') || new JsonRpcProvider(networks[rChainId].rpcUrl)
 
       if (jsonModuleName && contractAddress && provider) {
-        ;(async () => setContract(await getContract(jsonModuleName, contractAddress, provider)))()
+        ;(async () => {
+          const contract = await getContract(jsonModuleName, contractAddress, provider)
+          setContract(contract ?? null)
+        })()
       }
     }
   }, [contractAddress, getContract, getProvider, jsonModuleName, rChainId, signerRequired])

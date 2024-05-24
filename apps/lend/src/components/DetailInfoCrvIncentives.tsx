@@ -4,7 +4,8 @@ import React, { useMemo } from 'react'
 import styled from 'styled-components'
 
 import { FORMAT_OPTIONS, formatNumber } from '@/ui/utils'
-import useAbiGaugeTotalSupply from '@/hooks/useAbiGaugeTotalSupply'
+import { INVALID_ADDRESS } from '@/constants'
+import useAbiTotalSupply from '@/hooks/useAbiTotalSupply'
 import useStore from '@/store/useStore'
 import useSupplyTotalApr from '@/hooks/useSupplyTotalApr'
 
@@ -31,37 +32,41 @@ const DetailInfoCrvIncentives = ({
   lpTokenAmount: string
 }) => {
   const { tooltipValues } = useSupplyTotalApr(rChainId, rOwmId)
-  const owmData = useStore((state) => state.markets.owmDatasMapper[rChainId]?.[rOwmId])
-  const gaugeTotalSupply = useAbiGaugeTotalSupply(rChainId, owmData?.owm?.addresses?.gauge)
+  const gaugeAddress = useStore((state) => state.markets.owmDatasMapper[rChainId]?.[rOwmId]?.owm?.addresses?.gauge)
+  const gaugeTotalSupply = useAbiTotalSupply(rChainId, gaugeAddress)
+  const isValidGaugeAddress = gaugeAddress !== INVALID_ADDRESS
 
   const { crvBase = '', incentivesObj = [] } = tooltipValues ?? {}
 
   const data = useMemo(() => {
     let data: Data[] = []
 
-    if (+crvBase > 0) {
-      data.push({
-        label: t`CRV APR:`,
-        tooltip: t`As the number of staked vault shares increases, the CRV APR will decrease.`,
-        skeleton: [50, 23],
-        ..._getDataApr(crvBase, gaugeTotalSupply, lpTokenAmount),
-      })
-    }
-
-    if (incentivesObj.length > 0) {
-      incentivesObj.forEach(({ apy, symbol }) => {
+    if (isValidGaugeAddress) {
+      if (+crvBase > 0) {
         data.push({
-          label: t`Incentives ${symbol} APR:`,
-          tooltip: t`As the number of staked vault shares increases, the ${symbol} APR will decrease.`,
-          skeleton: [60, 23],
-          ..._getDataApr(apy, gaugeTotalSupply, lpTokenAmount),
+          label: t`CRV APR:`,
+          tooltip: t`As the number of staked vault shares increases, the CRV APR will decrease.`,
+          skeleton: [50, 23],
+          ..._getDataApr(crvBase, gaugeTotalSupply, lpTokenAmount),
         })
-      })
-    }
-    return data
-  }, [crvBase, gaugeTotalSupply, incentivesObj, lpTokenAmount])
+      }
 
-  if (data.length === 0) {
+      if (incentivesObj.length > 0) {
+        incentivesObj.forEach(({ apy, symbol }) => {
+          data.push({
+            label: t`Incentives ${symbol} APR:`,
+            tooltip: t`As the number of staked vault shares increases, the ${symbol} APR will decrease.`,
+            skeleton: [60, 23],
+            ..._getDataApr(apy, gaugeTotalSupply, lpTokenAmount),
+          })
+        })
+      }
+    }
+
+    return data
+  }, [crvBase, isValidGaugeAddress, gaugeTotalSupply, incentivesObj, lpTokenAmount])
+
+  if (data.length === 0 || !isValidGaugeAddress) {
     return null
   }
 

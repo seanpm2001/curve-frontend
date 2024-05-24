@@ -200,18 +200,20 @@ const VaultStake = ({ rChainId, rOwmId, rFormType, isLoaded, api, owmData, userA
       </div>
 
       {/* detail info */}
-      <StyledDetailInfoWrapper>
-        {detailInfoCrvIncentivesComp}
+      {(detailInfoCrvIncentivesComp || signerAddress) && (
+        <StyledDetailInfoWrapper>
+          {detailInfoCrvIncentivesComp}
 
-        {signerAddress && (
-          <DetailInfoEstimateGas
-            isDivider={detailInfoCrvIncentivesComp !== null}
-            chainId={rChainId}
-            {...formEstGas}
-            stepProgress={activeStep && steps.length > 1 ? { active: activeStep, total: steps.length } : null}
-          />
-        )}
-      </StyledDetailInfoWrapper>
+          {signerAddress && (
+            <DetailInfoEstimateGas
+              isDivider={detailInfoCrvIncentivesComp !== null}
+              chainId={rChainId}
+              {...formEstGas}
+              stepProgress={activeStep && steps.length > 1 ? { active: activeStep, total: steps.length } : null}
+            />
+          )}
+        </StyledDetailInfoWrapper>
+      )}
 
       {/* actions */}
       <LoanFormConnect haveSigner={!!signerAddress} loading={!api}>
