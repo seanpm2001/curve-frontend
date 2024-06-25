@@ -12,6 +12,7 @@ import phantomModule from '@web3-onboard/phantom'
 import frontierModule from '@web3-onboard/frontier'
 import trustModule from '@web3-onboard/trust'
 import bitgetModule from '@web3-onboard/bitget'
+import metamaskSDK from '@web3-onboard/metamask'
 
 const WALLET_CONNECT_PROJECT_ID = 'c685334a8b28bf7c733632a5c49de23f'
 
@@ -40,3 +41,11 @@ export const phantom = phantomModule()
 export const frontier = frontierModule()
 export const trust = trustModule()
 export const bitget = bitgetModule()
+
+export const metamaskSDKWallet = metamaskSDK({
+  options: {
+    dappMetadata: { name: 'Curve' },
+    extensionOnly: true, // If MetaMask browser extension is detected, directly use it without prompting the user.,
+    checkInstallationImmediately: false,
+  },
+})

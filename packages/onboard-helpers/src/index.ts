@@ -13,6 +13,7 @@ import {
   frontier,
   bitget,
   trust,
+  metamaskSDKWallet,
 } from './utils/walletModules'
 
 export * from '@web3-onboard/react'
@@ -40,6 +41,7 @@ export function initOnboard(i18n, locale, themeType, networks) {
 
   const walletState = onboard.init({
     wallets: [
+      metamaskSDKWallet, // Make sure to pass in before or above the injected-wallets module
       injected,
       trezor,
       ledger,
