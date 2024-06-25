@@ -26,6 +26,7 @@
     "tsconfig": "*"
   },
   "peerDependencies": {
+    "onboard-helpers": "*",
     "react": "^18",
     "react-dom": "^18",
     "react-router-dom": "^6",

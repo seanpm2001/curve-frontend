@@ -1,11 +1,11 @@
 import type { ButtonProps } from 'ui/src/Button/types'
-import type { ConnectState } from 'ui/src/utils'
+import type { ConnectState } from 'onboard-helpers'
 
 import styled from 'styled-components'
 import * as React from 'react'
 
-import { isLoading, isSuccess, shortenAccount } from 'ui/src/utils'
-
+import { CONNECT_STAGE, isLoading, isSuccess } from 'onboard-helpers'
+import { shortenAccount } from 'ui/src/utils'
 import Button from 'ui/src/Button/index'
 
 type Status = 'success' | 'loading' | ''
@@ -25,7 +25,9 @@ function ConnectWallet({
     handleClick: () => void
   }) {
   const loading =
-    isLoading(connectState, ['connect', 'disconnect']) || (isLoading(connectState, 'switch') && !!walletSignerAddress)
+    isLoading(connectState, [CONNECT_STAGE.CONNECT_WALLET, CONNECT_STAGE.DISCONNECT_WALLET]) ||
+    (isLoading(connectState, CONNECT_STAGE.SWITCH_NETWORK) && !!walletSignerAddress) ||
+    (isLoading(connectState, CONNECT_STAGE.CONNECT_API) && !!walletSignerAddress)
 
   return (
     <ConnectButton
@@ -90,11 +92,14 @@ const ConnectButton = styled(Button)<{
 export default ConnectWallet
 
 function getLabel(connectState: ConnectState, walletSignerAddress: string | undefined) {
-  if (isLoading(connectState, 'switch') && !!walletSignerAddress) {
+  if (isLoading(connectState, CONNECT_STAGE.SWITCH_NETWORK) && !!walletSignerAddress) {
     return 'Switching...'
-  } else if (isLoading(connectState, 'disconnect')) {
+  } else if (isLoading(connectState, CONNECT_STAGE.DISCONNECT_WALLET)) {
     return 'Disconnecting...'
-  } else if (isLoading(connectState, 'connect')) {
+  } else if (
+    isLoading(connectState, CONNECT_STAGE.CONNECT_WALLET) ||
+    (isLoading(connectState, CONNECT_STAGE.CONNECT_API) && !!walletSignerAddress)
+  ) {
     return 'Connecting...'
   } else if (walletSignerAddress) {
     return shortenAccount(walletSignerAddress)
